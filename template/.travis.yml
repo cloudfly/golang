@@ -1,0 +1,13 @@
+nguage: go
+go_import_path: github.com/cloudfly/template
+go:
+  - 1.5.4
+  - 1.6.1
+  - tip
+
+install:
+  - export GOPATH=~/gopath
+  - go get github.com/pkg/errors
+
+script:
+  - go test -v
