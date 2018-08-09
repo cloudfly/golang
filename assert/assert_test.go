@@ -83,6 +83,34 @@ func TestAssert_ExecuteNormal(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, true, result)
+
+	expr, err = New(`code >= 200 && code < 300 && rt < 10000 && error == ''`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err = expr.Execute(MockKV{
+		"code":  200,
+		"rt":    56,
+		"error": "",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, true, result)
+
+	expr, err = New(`usage < 80`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err = expr.Execute(MockKV{
+		"host":  "172.16.50.50",
+		"time":  1533791996370402301,
+		"usage": 65.14931404914708,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, true, result)
 }
 
 func TestAssert_ExecuteRegexp(t *testing.T) {

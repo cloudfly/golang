@@ -70,6 +70,22 @@ func NewValue(v interface{}) Value {
 	case uint64:
 		res.val = float64(r)
 		res.vType = Number
+	default:
+		s := fmt.Sprintf("%v", v)
+		f, err := strconv.ParseFloat(s, 64)
+		if err == nil {
+			res.val = f
+			res.vType = Number
+			break
+		}
+		b, err := strconv.ParseBool(s)
+		if err == nil {
+			res.val = b
+			res.vType = Boolean
+			break
+		}
+		res.val = s
+		res.vType = String
 	}
 	return res
 }

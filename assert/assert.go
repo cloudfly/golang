@@ -117,6 +117,12 @@ func (assert *Assert) Execute(kv kvReader) (bool, error) {
 	return assert.answer, assert.err
 }
 
+func (assert *Assert) DataAndPos() ([]string, int) {
+	ret := make([]string, len(assert.data))
+	copy(ret, assert.data)
+	return ret, assert.pos
+}
+
 func parse(data string) ([]string, error) {
 	items := make([]string, 0, 256)
 	var (
