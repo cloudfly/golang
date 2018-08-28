@@ -42,6 +42,9 @@ func SetInfluxdb(addr string) (err error) {
 		Addr:    addr,
 		Timeout: time.Second * 10,
 	})
+	if _, _, err = c.Ping(time.Second * 3); err != nil {
+		return
+	}
 	return
 }
 
