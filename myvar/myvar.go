@@ -36,6 +36,10 @@ func SetDatabase(db string) {
 	database = db
 }
 
+func GetDatabase() string {
+	return database
+}
+
 // SetInfluxdb initialize the influxdb address
 func SetInfluxdb(addr string) (err error) {
 	c, err = client.NewHTTPClient(client.HTTPConfig{
