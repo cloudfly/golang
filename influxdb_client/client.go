@@ -13,6 +13,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+var (
+	bufPool = new(sync.Pool)
+)
+
 // InfluxdbClient station
 type InfluxdbClient struct {
 	locker         *sync.RWMutex
@@ -24,6 +28,12 @@ type InfluxdbClient struct {
 	client         influxdb.Client
 	blockOnError   bool
 	processors     map[string]*processor
+}
+
+func init() {
+	bufPool.New = func() interface{} {
+		return make([]*influxdb.Point, 0, 5000)
+	}
 }
 
 // New InfluxDB component
@@ -256,7 +266,7 @@ func newProcessor(ctx context.Context, wg *sync.WaitGroup, addr, database, rp st
 		database:      database,
 		rp:            rp,
 		maxPointCache: maxPointCache,
-		cache:         make([]*influxdb.Point, 0, 5000),
+		cache:         bufPool.Get().([]*influxdb.Point),
 		client:        client,
 		logger:        log.WithField("database", database),
 		blockOnError:  blockOnError,
@@ -273,7 +283,7 @@ func (p *processor) writeCache(points []*influxdb.Point) {
 	// 超过 maxPointCache 马上 flush 一次, 最好不要超过 5000 个 points 再 flush(官方推荐)
 	if len(p.cache) > p.maxPointCache {
 		data := p.cache
-		p.cache = make([]*influxdb.Point, 0, 5000)
+		p.cache = bufPool.Get().([]*influxdb.Point)
 		p.cacheLock.Unlock()
 		p.flush(data)
 	} else {
@@ -326,7 +336,7 @@ func (p *processor) flusher() {
 			}
 			p.cacheLock.Lock()
 			data := p.cache
-			p.cache = make([]*influxdb.Point, 0, 5000)
+			p.cache = bufPool.Get().([]*influxdb.Point)
 			p.cacheLock.Unlock()
 			n += len(data)
 			p.flush(data)
@@ -335,6 +345,7 @@ func (p *processor) flusher() {
 }
 
 func (p *processor) flush(data []*influxdb.Point) {
+	defer bufPool.Put(data[0:0])
 	p.flushLock.Lock()
 	defer p.flushLock.Unlock()
 	batch, err := influxdb.NewBatchPoints(influxdb.BatchPointsConfig{
