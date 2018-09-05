@@ -1,6 +1,7 @@
 package assert
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -111,6 +112,25 @@ func TestAssert_ExecuteNormal(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, true, result)
+
+	// test in parallel
+	wait := sync.WaitGroup{}
+	wait.Add(20)
+	for i := 0; i < 20; i++ {
+		go func() {
+			defer wait.Done()
+			result, err = expr.Execute(MockKV{
+				"host":  "172.16.50.50",
+				"time":  1533791996370402301,
+				"usage": 65.14931404914708,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			assert.Equal(t, true, result)
+		}()
+	}
+	wait.Wait()
 }
 
 func TestAssert_ExecuteRegexp(t *testing.T) {
@@ -152,4 +172,27 @@ func TestAssert_ExecuteRegexp(t *testing.T) {
 	}
 	assert.Equal(t, false, result)
 
+	expr, err = New(`bizType >= -10 && bizType <= -1`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err = expr.Execute(
+		MockKV(map[string]interface{}{
+			"bizType": 4,
+		}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, false, result)
+
+	result, err = expr.Execute(
+		MockKV(map[string]interface{}{
+			"bizType": -5,
+		}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, true, result)
 }

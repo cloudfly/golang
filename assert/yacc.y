@@ -36,7 +36,6 @@ package assert
 %left '*' '/' '%'
 %left LB RB
 %right NOT
-
 %%
 
 statement: expr EOF
@@ -133,6 +132,10 @@ expr: LB expr RB
             return ErrNotNumber
         }
         $$ = v
+    }
+    | '-' expr
+    {
+        $$, _ = NewValue(0).Sub($2)
     }
     | VALUE
     { 

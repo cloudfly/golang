@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 
 	"github.com/pkg/errors"
@@ -22,6 +23,7 @@ type kvReader interface {
 }
 
 type Assert struct {
+	*sync.Mutex
 	data   []string
 	pos    int
 	answer bool
@@ -35,7 +37,8 @@ func New(code string) (*Assert, error) {
 		return nil, err
 	}
 	return &Assert{
-		data: items,
+		Mutex: &sync.Mutex{},
+		data:  items,
 	}, nil
 }
 
@@ -111,6 +114,8 @@ func (l *Assert) Error(s string) {
 }
 
 func (assert *Assert) Execute(kv kvReader) (bool, error) {
+	assert.Lock()
+	defer assert.Unlock()
 	assert.kv = kv
 	yyParse(assert)
 	assert.pos = 0 // reset the pos
@@ -143,6 +148,14 @@ func parse(data string) ([]string, error) {
 	items = append(items, strings.TrimSpace(data[start:]))
 	return items, nil
 }
+
+const (
+	SStart = iota
+	SNumber
+	SFloat
+	Sor
+	SAnd
+)
 
 // return nextState, cutOrNot, errorMessage
 // if c should be included into current symbol, return (CUT, false, nil)
