@@ -2,6 +2,7 @@ package myvar
 
 import (
 	"fmt"
+	"math"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -12,31 +13,27 @@ import (
 )
 
 var (
-	metricID      int64
 	flushInterval = time.Second * 10
-	metricCache   sync.Map
+	cacheLock     sync.Mutex
+	cache         map[string]*Var
+	tempCache     []*client.Point
 	cancel        chan struct{}
 	gtags         models.Tags
 
-	batch    client.BatchPoints
 	database string
-	rp       string
 	c        client.Client
 )
 
 func init() {
 	cache = make(map[string]*Var)
 	cancel = make(chan struct{})
+	tempCache = make([]*client.Point, 0, 1000)
 	go flusher()
 }
 
 // SetDatabase initialize the default database
-func SetDatabase(db string, rpSetting ...string) {
+func SetDatabase(db string) {
 	database = db
-	if len(rpSetting) > 0 {
-		rp = rpSetting[0]
-	}
-	resetBatch()
 }
 
 func GetDatabase() string {
@@ -65,167 +62,204 @@ func SetGlobalTag(key, value string) {
 	gtags.SetString(key, value)
 }
 
-func resetBatch() {
-	batch, _ = client.NewBatchPoints(client.BatchPointsConfig{
-		Database:        database,
-		RetentionPolicy: rp,
-	})
-}
+func publish(measurement string, tags map[string]string, name string, value interface{}) {
+	cacheLock.Lock()
+	defer cacheLock.Unlock()
 
-type Metric struct {
-	*sync.RWMutex
-	id          int64
-	measurement string
-	tags        map[string]*string
-	ints        map[string]int64
-	floats      map[string]float64
-	strs        map[string]string
-}
-
-func NewMetric(measurement string, tags map[string]*string) *Metric {
-	if tags == nil {
-		tags = make(map[string]*string)
-	}
-	metric := &Metric{
-		RWMutex:     &sync.RWMutex{},
+	cache[key(measurement, tags, name)] = &Var{
 		measurement: measurement,
-		id:          atomic.AddInt64(&metricID, 1),
-		tags:        tags,
-		ints:        make(map[string]int64),
-		floats:      make(map[string]float64),
-		strs:        make(map[string]string),
+		tags:        models.NewTags(tags),
+		name:        name,
+		value:       value,
 	}
-	metricCache.Store(metric.id, metric)
-	return metric
 }
 
-func (metric *Metric) Free() {
-	metricCache.Delete(metric.id)
+func getMap(measurement string, tags map[string]string, name string) (*Map, bool) {
+
+	return nil, false
 }
 
-func (metric *Metric) Incr(field string) *Metric {
-	metric.Lock()
-	defer metric.Unlock()
-	i, _ := metric.ints[field]
-	metric.ints[field] = i + 1
-	return metric
+type Var struct {
+	measurement string
+	tags        models.Tags
+	name        string
+	value       interface{}
 }
 
-func (metric *Metric) Add(field string, v int64) *Metric {
-	metric.Lock()
-	defer metric.Unlock()
-	i, _ := metric.ints[field]
-	metric.ints[field] = i + v
-	return metric
+// Variable type
+const (
+	INT uint8 = 1 << iota
+	FLOAT
+	STRING
+)
+
+// Float variable
+type Float struct {
+	key   string
+	value uint64
 }
 
-func (metric *Metric) Set(field string, v int64) *Metric {
-	metric.Lock()
-	defer metric.Unlock()
-	metric.ints[field] = v
-	return metric
-}
-
-func (metric *Metric) Clear(field string) *Metric {
-	metric.Lock()
-	defer metric.Unlock()
-	delete(metric.ints, field)
-	delete(metric.floats, field)
-	delete(metric.strs, field)
-	return metric
-}
-
-func (metric *Metric) AddFloat(field string, v float64) *Metric {
-	metric.Lock()
-	defer metric.Unlock()
-	f, _ := metric.floats[field]
-	metric.floats[field] = f + v
-	return metric
-}
-
-func (metric *Metric) SetFloat(field string, v float64) *Metric {
-	metric.Lock()
-	defer metric.Unlock()
-	metric.floats[field] = v
-	return metric
-}
-
-func (metric *Metric) SetString(field string, str string) *Metric {
-	metric.Lock()
-	defer metric.Unlock()
-	metric.strs[field] = str
-	return metric
-}
-
-func (metric *Metric) Append(field string, str string) *Metric {
-	metric.Lock()
-	defer metric.Unlock()
-	s, _ := metric.strs[field]
-	if len(s) >= 512 {
-		return metric
+// NewFloat create a new float variable
+func NewFloat(measurement string, tags map[string]string, name string) *Float {
+	k := key(measurement, tags, name)
+	cacheLock.Lock()
+	data, ok := cache[k]
+	cacheLock.Unlock()
+	if ok {
+		f, ok := data.value.(*Float)
+		if ok {
+			return f
+		}
 	}
-	metric.strs[field] = s + str
-	return metric
-}
-
-func (metric *Metric) AppendNoLimit(field string, str string) *Metric {
-	metric.Lock()
-	defer metric.Unlock()
-	s, _ := metric.strs[field]
-	metric.strs[field] = s + str
-	return metric
-}
-
-func (metric *Metric) Int(field string) int64 {
-	metric.RLock()
-	defer metric.RUnlock()
-	i, _ := metric.ints[field]
-	return i
-}
-
-func (metric *Metric) Float(field string) float64 {
-	metric.RLock()
-	defer metric.RUnlock()
-	f, _ := metric.floats[field]
+	f := new(Float)
+	f.key = k
+	publish(measurement, tags, name, f)
 	return f
 }
 
-func (metric *Metric) String(field string) string {
-	metric.RLock()
-	defer metric.RUnlock()
-	s, _ := metric.strs[field]
+func (f *Float) Set(v float64) {
+	atomic.StoreUint64(&f.value, math.Float64bits(v))
+}
+
+func (f *Float) Add(delta float64) {
+	for {
+		cur := atomic.LoadUint64(&f.value)
+		curVal := math.Float64frombits(cur)
+		nxtVal := curVal + delta
+		nxt := math.Float64bits(nxtVal)
+		if atomic.CompareAndSwapUint64(&f.value, cur, nxt) {
+			return
+		}
+	}
+}
+
+func (f *Float) Value() float64 {
+	return math.Float64frombits(atomic.LoadUint64(&f.value))
+}
+
+func (f *Float) Free() {
+	cacheLock.Lock()
+	delete(cache, f.key)
+	cacheLock.Unlock()
+}
+
+type Int struct {
+	key   string
+	value int64
+}
+
+func NewInt(measurement string, tags map[string]string, name string) *Int {
+	k := key(measurement, tags, name)
+
+	cacheLock.Lock()
+	data, ok := cache[k]
+	cacheLock.Unlock()
+	if ok {
+		n, ok := data.value.(*Int)
+		if ok {
+			return n
+		}
+	}
+	n := new(Int)
+	n.key = k
+	publish(measurement, tags, name, n)
+	return n
+}
+
+func (n *Int) Set(v int64) {
+	atomic.StoreInt64(&(n.value), v)
+}
+
+func (n *Int) Add(v int64) {
+	atomic.AddInt64(&(n.value), v)
+}
+
+func (n *Int) Incr() {
+	atomic.AddInt64(&(n.value), 1)
+}
+
+func (n *Int) Value() int64 {
+	return atomic.LoadInt64(&(n.value))
+}
+
+func (n *Int) Free() {
+	cacheLock.Lock()
+	delete(cache, n.key)
+	cacheLock.Unlock()
+}
+
+type String struct {
+	key   string
+	value atomic.Value
+}
+
+func NewString(measurement string, tags map[string]string, name string) *String {
+	k := key(measurement, tags, name)
+	cacheLock.Lock()
+	data, ok := cache[k]
+	cacheLock.Unlock()
+	if ok {
+		s, ok := data.value.(*String)
+		if ok {
+			return s
+		}
+	}
+	s := new(String)
+	s.key = k
+	publish(measurement, tags, name, s)
 	return s
 }
 
-func (metric *Metric) Points(t time.Time) *client.Point {
-	metric.RLock()
-	defer metric.RUnlock()
-	fields := make(map[string]interface{})
-	tags := make(map[string]string)
-	for k, v := range metric.tags {
-		k, v := k, v
-		tags[k] = *v
-	}
-	for k, v := range metric.ints {
-		k, v := k, v
-		fields[k] = v
-	}
-	for k, v := range metric.floats {
-		k, v := k, v
-		fields[k] = v
-	}
-	for k, v := range metric.strs {
-		k, v := k, v
-		fields[k] = v
-		delete(metric.strs, k)
-	}
+func (s *String) Set(v string) {
+	s.value.Store(v)
+}
 
-	p, err := models.NewPoint(metric.measurement, append(models.NewTags(tags), gtags...), models.Fields(fields), t)
-	if err != nil {
-		log.Errorf("failed create new influxdb point, %s", err.Error())
-		return nil
+func (s *String) Value() string {
+	p, _ := s.value.Load().(string)
+	return p
+}
+
+func (s *String) Free() {
+	cacheLock.Lock()
+	delete(cache, s.key)
+	cacheLock.Unlock()
+}
+
+type Map struct {
+	key  string
+	data sync.Map
+}
+
+func NewMap(measurement string, tags map[string]string) *Map {
+	k := key(measurement, tags, "")
+	cacheLock.Lock()
+	data, ok := cache[k]
+	cacheLock.Unlock()
+	if ok {
+		m, ok := data.value.(*Map)
+		if ok {
+			return m
+		}
 	}
-	return client.NewPointFrom(p)
+	m := new(Map)
+	m.key = k
+	publish(measurement, tags, "", m)
+	return m
+}
+
+func (m *Map) Set(key string, value interface{}) *Map {
+	m.data.Store(key, value)
+	return m
+}
+
+func (m *Map) Get(key string) (interface{}, bool) {
+	return m.data.Load(key)
+}
+
+func (m *Map) Free() {
+	cacheLock.Lock()
+	delete(cache, m.key)
+	cacheLock.Unlock()
 }
 
 // Publish a raw influxdb points
@@ -234,7 +268,9 @@ func Publish(name string, tags map[string]string, fields map[string]interface{})
 	if err != nil {
 		return err
 	}
-	batch.AddPoint(p)
+	cacheLock.Lock()
+	defer cacheLock.Unlock()
+	tempCache = append(tempCache, p)
 	return nil
 }
 
@@ -243,6 +279,14 @@ func Flush(tt ...time.Time) error {
 	t := time.Now()
 	if len(tt) > 0 {
 		t = tt[0]
+	}
+
+	batch, err := client.NewBatchPoints(client.BatchPointsConfig{
+		Database: database,
+	})
+	if err != nil {
+		log.Errorf("fail to create influxdb batch, %s", err.Error())
+		return err
 	}
 
 	cacheLock.Lock()
@@ -278,21 +322,16 @@ LOOP:
 		}
 		batch.AddPoint(client.NewPointFrom(p))
 	}
-	cacheLock.Unlock()
 
-	metricCache.Range(func(_, value interface{}) bool {
-		metric := value.(*Metric)
-		if p := metric.Points(t); p != nil {
-			batch.AddPoint(p)
-		}
-		return true
-	})
+	if len(tempCache) > 0 {
+		batch.AddPoints(tempCache)
+		tempCache = tempCache[:0]
+	}
+	cacheLock.Unlock()
 
 	if len(batch.Points()) == 0 {
 		return nil
 	}
-
-	defer resetBatch()
 
 	return c.Write(batch)
 }

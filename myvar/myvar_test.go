@@ -3,8 +3,6 @@ package myvar
 import (
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestInt(t *testing.T) {
@@ -40,10 +38,5 @@ func TestInt(t *testing.T) {
 	Flush(time.Now().Truncate(time.Second))
 
 	s.Free()
-
-	host := "1.1.1.1"
-	metric := NewMetric("test", map[string]*string{"host": &host})
-	metric.Incr("counter")
-	assert.Equal(t, int64(1), metric.Int("counter"))
 
 }
