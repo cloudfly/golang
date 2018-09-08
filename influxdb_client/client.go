@@ -361,7 +361,6 @@ func (p *processor) flush(data []*influxdb.Point) {
 	for {
 		// write into influxdb
 		if err := p.client.Write(batch); err != nil {
-			p.logger.Errorf("failed to write batch into database, %s", err.Error())
 			errMsg := err.Error()
 			if len(errMsg) > 0 && errMsg[0] == '{' {
 				// the influxdb will return a json format error for request error
