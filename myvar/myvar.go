@@ -3,6 +3,7 @@ package myvar
 import (
 	"fmt"
 	"math"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -72,11 +73,6 @@ func publish(measurement string, tags map[string]string, name string, value inte
 		name:        name,
 		value:       value,
 	}
-}
-
-func getMap(measurement string, tags map[string]string, name string) (*Map, bool) {
-
-	return nil, false
 }
 
 type Var struct {
@@ -276,9 +272,13 @@ func Publish(name string, tags map[string]string, fields map[string]interface{})
 
 // Flush write all the points in cache into influxdb
 func Flush(tt ...time.Time) error {
-	t := time.Now()
+	var (
+		t time.Time
+	)
 	if len(tt) > 0 {
 		t = tt[0]
+	} else {
+		t = time.Now()
 	}
 
 	batch, err := client.NewBatchPoints(client.BatchPointsConfig{
@@ -356,10 +356,16 @@ func flusher() {
 	}
 }
 
+// 生成唯一 key, 必须要对 tags 排序, 否则相同的 metric 会出现不同的 key
 func key(measurement string, tags map[string]string, name string) string {
 	s := ""
-	for k, v := range tags {
-		s += fmt.Sprintf("%s=%s,", k, v)
+	keys := make([]string, 0, len(tags))
+	for k := range tags {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		s += fmt.Sprintf("%s=%s,", k, tags[k])
 	}
 	return fmt.Sprintf("%s.%s.%s", measurement, s, name)
 }
