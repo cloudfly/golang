@@ -207,6 +207,9 @@ func NewString(measurement string, tags map[string]string, name string) *String 
 }
 
 func (s *String) Set(v string) {
+	if len(v) > 256 { // 不允许超过 256 长度
+		v = v[:256]
+	}
 	s.value.Store(v)
 }
 
