@@ -9,8 +9,8 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	client "github.com/influxdata/influxdb/client/v2"
 	"github.com/influxdata/influxdb/models"
+	client "github.com/influxdata/influxdb/client/v2"
 )
 
 var (
@@ -80,6 +80,22 @@ type Var struct {
 	tags        models.Tags
 	name        string
 	value       interface{}
+}
+
+func (v Var) GetMeasurement() string {
+	return v.measurement
+}
+
+func (v Var) GetTags() models.Tags {
+	return v.tags
+}
+
+func (v Var) GetValue() interface{} {
+	return v.value
+}
+
+func (v Var) GetName() string {
+	return v.name
 }
 
 // Variable type
@@ -227,6 +243,18 @@ func (s *String) Free() {
 type Map struct {
 	key  string
 	data sync.Map
+}
+
+func (m Map) GetData() sync.Map {
+	return m.data
+}
+
+func (m Map) DelEntry(k interface{}) {
+	m.data.Delete(k)
+}
+
+func (m Map) RangeFunc(f func(key, value interface{}) bool) {
+	m.data.Range(f)
 }
 
 func NewMap(measurement string, tags map[string]string) *Map {
