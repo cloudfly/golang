@@ -1,0 +1,1 @@
+package myvar_class
