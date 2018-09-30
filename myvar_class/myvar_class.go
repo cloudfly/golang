@@ -6,16 +6,16 @@ import (
 	"time"
 
 	client "github.com/influxdata/influxdb/client/v2"
-	myv "github.com/cloudfly/golang/myvar"
 	"github.com/influxdata/influxdb/models"
 	log "github.com/Sirupsen/logrus"
+	"sort"
 )
 
 type InstanceMyVar struct {
 	flushInterval time.Duration
 	cacheLock     sync.Mutex
-	cache         map[string]*myv.Var
-	tempCache     []*client.Point
+	cache         map[string]*Var // cache of Var instances
+	tempCache     []*client.Point // cache of influxdb points
 	cancel        chan struct{}
 	gtags         models.Tags
 
@@ -40,7 +40,7 @@ func NewMyVar(addr, db string, interval time.Duration) (*InstanceMyVar, error) {
 		c: cli,
 		database: db,
 		flushInterval: interval,
-		cache: make(map[string]*myv.Var),
+		cache: make(map[string]*Var),
 		tempCache: make([]*client.Point, 0, 1000),
 	}
 
@@ -54,6 +54,11 @@ func NewMyVar(addr, db string, interval time.Duration) (*InstanceMyVar, error) {
 // SetGlobalTag set global tag list, used by each variable
 func (mv *InstanceMyVar) SetGlobalTag(key, value string) {
 	mv.gtags.SetString(key, value)
+}
+
+// GetDatabase returns db used for monitoring
+func (mv *InstanceMyVar) GetDatabase() string {
+	return mv.database
 }
 
 func (mv *InstanceMyVar) flusher() {
@@ -100,18 +105,18 @@ LOOP:
 	for _, v := range mv.cache {
 		fields := map[string]interface{}{}
 		switch vv := v.GetValue().(type) {
-		case *myv.Float:
+		case *Float:
 			fields[v.GetName()] = vv.Value()
-		case *myv.Int:
+		case *Int:
 			fields[v.GetName()] = vv.Value()
-		case *myv.String:
+		case *String:
 			s := vv.Value()
 			if len(s) == 0 {
 				continue LOOP
 			}
 			fields[v.GetName()] = s
 			vv.Set("") // 重置一下, 下次除非有新的数据过来, 否则就不发了
-		case *myv.Map:
+		case *Map:
 			vv.RangeFunc(func(k, v interface{}) bool {
 				fields[k.(string)] = v
 				vv.DelEntry(k)
@@ -140,4 +145,143 @@ LOOP:
 	}
 
 	return mv.c.Write(batch)
+}
+
+// Publish a raw influxdb points
+func (mv *InstanceMyVar) Publish(name string, tags map[string]string, fields map[string]interface{}) error {
+	p, err := client.NewPoint(name, tags, fields, time.Now())
+	if err != nil {
+		return err
+	}
+	mv.cacheLock.Lock()
+	defer mv.cacheLock.Unlock()
+	mv.tempCache = append(mv.tempCache, p)
+	return nil
+}
+
+func (mv *InstanceMyVar) publish(measurement string, tags map[string]string, name string, value interface{}) {
+	mv.cacheLock.Lock()
+	defer mv.cacheLock.Unlock()
+
+	mv.cache[key(measurement, tags, name)] = &Var{
+		measurement: measurement,
+		tags:        models.NewTags(tags),
+		name:        name,
+		value:       value,
+	}
+}
+
+func (mv *InstanceMyVar) getVar(k string) (*Var, bool) {
+	mv.cacheLock.Lock()
+	defer mv.cacheLock.Unlock()
+
+	v, ok := mv.cache[k]
+	return v, ok
+}
+
+//
+func (mv *InstanceMyVar) NewInt(measurement string, tags map[string]string, name string, t int) *Int {
+	k := key(measurement, tags, name)
+
+	data, ok := mv.getVar(k)
+	if ok {
+		n, ok := data.GetValue().(*Int)
+		if ok {
+			return n
+		}
+	}
+	n := new(Int)
+	n.key = k
+	mv.publish(measurement, tags, name, n)
+	return n
+}
+
+func (mv *InstanceMyVar) FreeInt(n *Int) {
+	mv.cacheLock.Lock()
+	delete(mv.cache, n.key)
+	mv.cacheLock.Unlock()
+}
+
+//
+func (mv *InstanceMyVar) NewFloat(measurement string, tags map[string]string, name string, t int) *Float {
+	k := key(measurement, tags, name)
+
+	data, ok := mv.getVar(k)
+	if ok {
+		n, ok := data.GetValue().(*Float)
+		if ok {
+			return n
+		}
+	}
+	n := new(Float)
+	n.key = k
+	mv.publish(measurement, tags, name, n)
+	return n
+}
+
+func (mv *InstanceMyVar) FreeFloat(f *Float) {
+	mv.cacheLock.Lock()
+	delete(mv.cache, f.key)
+	mv.cacheLock.Unlock()
+}
+
+//
+func (mv *InstanceMyVar) NewString(measurement string, tags map[string]string, name string) *String {
+	k := key(measurement, tags, name)
+
+	data, ok := mv.getVar(k)
+	if ok {
+		s, ok := data.value.(*String)
+		if ok {
+			return s
+		}
+	}
+	s := new(String)
+	s.key = k
+	mv.publish(measurement, tags, name, s)
+	return s
+}
+
+func (mv *InstanceMyVar) FreeString(s *String) {
+	mv.cacheLock.Lock()
+	delete(mv.cache, s.key)
+	mv.cacheLock.Unlock()
+}
+
+//
+func (mv *InstanceMyVar) NewMap(measurement string, tags map[string]string) *Map {
+	k := key(measurement, tags, "")
+
+	data, ok := mv.getVar(k)
+	mv.cacheLock.Unlock()
+	if ok {
+		m, ok := data.value.(*Map)
+		if ok {
+			return m
+		}
+	}
+	m := new(Map)
+	m.key = k
+	mv.publish(measurement, tags, "", m)
+	return m
+}
+
+func (mv *InstanceMyVar) FreeMap(m *Map) {
+	mv.cacheLock.Lock()
+	delete(mv.cache, m.key)
+	mv.cacheLock.Unlock()
+}
+
+// 生成唯一 key, 必须要对 tags 排序, 否则相同的 metric 会出现不同的 key
+func key(measurement string, tags map[string]string, name string) string {
+	s := ""
+	keys := make([]string, 0, len(tags))
+	for k := range tags {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		s += fmt.Sprintf("%s=%s,", k, tags[k])
+	}
+	return fmt.Sprintf("%s.%s.%s", measurement, s, name)
 }
