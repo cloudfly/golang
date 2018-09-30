@@ -30,22 +30,26 @@ func NewMyVar(addr, db string, interval time.Duration) (*InstanceMyVar, error) {
 		Addr:    addr,
 		Timeout: time.Second * 10,
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	_, _, err = cli.Ping(time.Second * 3)
 	if err != nil && len(err.Error()) != 0 {
 		return nil, fmt.Errorf("influxdb connection failed, %s", err.Error())
 	}
 
+	// create db
+	cli.Query(client.NewQuery(fmt.Sprintf(`create database "%s"`, db), "", ""))
+
 	mv := &InstanceMyVar{
 		c: cli,
 		database: db,
 		flushInterval: interval,
+		cancel: make(chan struct{}),
 		cache: make(map[string]*Var),
 		tempCache: make([]*client.Point, 0, 1000),
 	}
-
-	close(mv.cancel)
-	mv.cancel = make(chan struct{})
 	go mv.flusher()
 
 	return mv, nil
@@ -126,7 +130,9 @@ LOOP:
 		if len(fields) == 0 {
 			continue
 		}
-		p, err := models.NewPoint(v.GetMeasurement(), append(v.GetTags().Clone(), mv.gtags...), models.Fields(fields), t)
+		tagList := append(v.GetTags().Clone(), mv.gtags...)
+		sort.Sort(tagList)
+		p, err := models.NewPoint(v.GetMeasurement(), tagList, models.Fields(fields), t)
 		if err != nil {
 			log.Errorf("failed create new influxdb point, %s", err.Error())
 			continue
@@ -143,7 +149,6 @@ LOOP:
 	if len(batch.Points()) == 0 {
 		return nil
 	}
-
 	return mv.c.Write(batch)
 }
 
@@ -180,7 +185,7 @@ func (mv *InstanceMyVar) getVar(k string) (*Var, bool) {
 }
 
 //
-func (mv *InstanceMyVar) NewInt(measurement string, tags map[string]string, name string, t int) *Int {
+func (mv *InstanceMyVar) NewInt(measurement string, tags map[string]string, name string) *Int {
 	k := key(measurement, tags, name)
 
 	data, ok := mv.getVar(k)
@@ -203,7 +208,7 @@ func (mv *InstanceMyVar) FreeInt(n *Int) {
 }
 
 //
-func (mv *InstanceMyVar) NewFloat(measurement string, tags map[string]string, name string, t int) *Float {
+func (mv *InstanceMyVar) NewFloat(measurement string, tags map[string]string, name string) *Float {
 	k := key(measurement, tags, name)
 
 	data, ok := mv.getVar(k)
