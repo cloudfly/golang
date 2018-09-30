@@ -346,7 +346,9 @@ LOOP:
 		if len(fields) == 0 {
 			continue
 		}
-		p, err := models.NewPoint(v.measurement, append(v.tags.Clone(), gtags...), models.Fields(fields), t)
+		tagList := append(v.GetTags().Clone(), gtags...)
+		sort.Sort(tagList)
+		p, err := models.NewPoint(v.measurement, tagList, models.Fields(fields), t)
 		if err != nil {
 			log.Errorf("failed create new influxdb point, %s", err.Error())
 			continue
