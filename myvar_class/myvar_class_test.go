@@ -41,4 +41,7 @@ func TestInt(t *testing.T) {
 	s.Set("second message")
 	mv.Flush(time.Now().Truncate(time.Second))
 	mv.FreeString(s)
+
+	mv.NewMap("testinfo", map[string]string{"host": "127.0.0.2"})
+
 }

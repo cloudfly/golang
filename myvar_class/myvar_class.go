@@ -258,7 +258,6 @@ func (mv *InstanceMyVar) NewMap(measurement string, tags map[string]string) *Map
 	k := key(measurement, tags, "")
 
 	data, ok := mv.getVar(k)
-	mv.cacheLock.Unlock()
 	if ok {
 		m, ok := data.value.(*Map)
 		if ok {
