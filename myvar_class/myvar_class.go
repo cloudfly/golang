@@ -65,6 +65,11 @@ func (mv *InstanceMyVar) GetDatabase() string {
 	return mv.database
 }
 
+// GetInfluxClient return influxdb client
+func (mv *InstanceMyVar) GetInfluxClient() client.Client {
+	return mv.c
+}
+
 func (mv *InstanceMyVar) flusher() {
 	ticker := time.Tick(mv.flushInterval)
 	for {
