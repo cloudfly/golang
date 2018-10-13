@@ -326,7 +326,6 @@ func (p *processor) flusher() {
 			}
 			// 重置 ticker, 就的 ticker 会被 gc 掉的, 不用管
 			tick = time.Tick(time.Millisecond * time.Duration(interval))
-			p.logger.Infof("change the flush interval to %dms", interval)
 		case <-done:
 			p.flush(p.cache)
 			return
