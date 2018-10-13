@@ -65,6 +65,11 @@ func (mv *InstanceMyVar) GetDatabase() string {
 	return mv.database
 }
 
+// GetInfluxClient return influxdb client
+func (mv *InstanceMyVar) GetInfluxClient() client.Client {
+	return mv.c
+}
+
 func (mv *InstanceMyVar) flusher() {
 	ticker := time.Tick(mv.flushInterval)
 	for {
@@ -258,7 +263,6 @@ func (mv *InstanceMyVar) NewMap(measurement string, tags map[string]string) *Map
 	k := key(measurement, tags, "")
 
 	data, ok := mv.getVar(k)
-	mv.cacheLock.Unlock()
 	if ok {
 		m, ok := data.value.(*Map)
 		if ok {
