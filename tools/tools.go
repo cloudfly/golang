@@ -19,8 +19,8 @@ func Hash(data []byte) string {
 }
 
 func SimpleMatch(pattern, s string) bool {
-	if pattern == "" { // empty pattern only match empty string
-		return s == ""
+	if pattern == s { // empty pattern only match empty string
+		return true
 	}
 	patternBytes, name := []byte(pattern), []byte(s) // parse to []byte saving the memroy and reduce gc for string
 	items := bytes.Split(patternBytes, []byte{'*'})
@@ -38,6 +38,40 @@ func SimpleMatch(pattern, s string) bool {
 		name = name[j+len(item):]
 	}
 	return len(name) == 0
+}
+
+func MapMatch(pattern map[string]string, data map[string]string) int {
+	if len(pattern) > len(data) { // pattern 必定存在某个 key, 在 data 中是找不到的
+		return 0
+	}
+
+	score := 1
+	for key, pattern := range pattern {
+		value, ok := data[key]
+		if !ok {
+			return 0
+		}
+		if i := SimpleMatchScore(pattern, value); i > 0 {
+			score += i
+		} else {
+			return 0
+		}
+	}
+	return score
+}
+
+// 字符串匹配, 返回匹配的分值
+// - 精准匹配: 2分
+// - 模糊匹配: 1分
+// - 不匹配: 0分
+func SimpleMatchScore(pattern, s string) int {
+	if pattern == s { // empty pattern only match empty string
+		return 2
+	}
+	if SimpleMatch(pattern, s) {
+		return 1
+	}
+	return 0
 }
 
 func RSAPublickDecryptEasy(key, data []byte) ([]byte, error) {
