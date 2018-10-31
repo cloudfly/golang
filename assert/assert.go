@@ -32,7 +32,7 @@ type Assert struct {
 }
 
 func New(code string) (*Assert, error) {
-	items, err := parse(code)
+	items, err := parse(strings.TrimSpace(code))
 	if err != nil {
 		return nil, err
 	}
