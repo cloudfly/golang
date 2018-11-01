@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/cloudfly/golang/tools"
 )
 
 const (
@@ -236,6 +238,13 @@ func (v Value) LTE(v2 Value) Value {
 	}
 	return Value{
 		val:   left <= right,
+		vType: Boolean,
+	}
+}
+
+func (v Value) MATCH(v2 Value) Value {
+	return Value{
+		val:   tools.SimpleMatch(v2.String(), v.String()),
 		vType: Boolean,
 	}
 }

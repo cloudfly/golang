@@ -30,6 +30,7 @@ state 2
 	expr:  expr.GT expr 
 	expr:  expr.LTE expr 
 	expr:  expr.GTE expr 
+	expr:  expr.MATCH expr 
 	expr:  expr.'+' expr 
 	expr:  expr.'-' expr 
 	expr:  expr.'*' expr 
@@ -47,11 +48,12 @@ state 2
 	LTE  shift 16
 	GTE  shift 17
 	EOF  shift 7
-	'+'  shift 18
-	'-'  shift 19
-	'*'  shift 20
-	'/'  shift 21
-	'%'  shift 22
+	MATCH  shift 18
+	'+'  shift 19
+	'-'  shift 20
+	'*'  shift 21
+	'/'  shift 22
+	'%'  shift 23
 	.  error
 
 
@@ -64,7 +66,7 @@ state 3
 	'-'  shift 5
 	.  error
 
-	expr  goto 23
+	expr  goto 24
 
 state 4
 	expr:  NOT.expr 
@@ -75,7 +77,7 @@ state 4
 	'-'  shift 5
 	.  error
 
-	expr  goto 24
+	expr  goto 25
 
 state 5
 	expr:  '-'.expr 
@@ -86,12 +88,12 @@ state 5
 	'-'  shift 5
 	.  error
 
-	expr  goto 25
+	expr  goto 26
 
 state 6
-	expr:  VALUE.    (20)
+	expr:  VALUE.    (21)
 
-	.  reduce 20 (src line 140)
+	.  reduce 21 (src line 144)
 
 
 state 7
@@ -109,7 +111,7 @@ state 8
 	'-'  shift 5
 	.  error
 
-	expr  goto 26
+	expr  goto 27
 
 state 9
 	expr:  expr OR.expr 
@@ -120,7 +122,7 @@ state 9
 	'-'  shift 5
 	.  error
 
-	expr  goto 27
+	expr  goto 28
 
 state 10
 	expr:  expr E.expr 
@@ -131,7 +133,7 @@ state 10
 	'-'  shift 5
 	.  error
 
-	expr  goto 28
+	expr  goto 29
 
 state 11
 	expr:  expr RE.expr 
@@ -142,7 +144,7 @@ state 11
 	'-'  shift 5
 	.  error
 
-	expr  goto 29
+	expr  goto 30
 
 state 12
 	expr:  expr NRE.expr 
@@ -153,7 +155,7 @@ state 12
 	'-'  shift 5
 	.  error
 
-	expr  goto 30
+	expr  goto 31
 
 state 13
 	expr:  expr NE.expr 
@@ -164,7 +166,7 @@ state 13
 	'-'  shift 5
 	.  error
 
-	expr  goto 31
+	expr  goto 32
 
 state 14
 	expr:  expr LT.expr 
@@ -175,7 +177,7 @@ state 14
 	'-'  shift 5
 	.  error
 
-	expr  goto 32
+	expr  goto 33
 
 state 15
 	expr:  expr GT.expr 
@@ -186,7 +188,7 @@ state 15
 	'-'  shift 5
 	.  error
 
-	expr  goto 33
+	expr  goto 34
 
 state 16
 	expr:  expr LTE.expr 
@@ -197,7 +199,7 @@ state 16
 	'-'  shift 5
 	.  error
 
-	expr  goto 34
+	expr  goto 35
 
 state 17
 	expr:  expr GTE.expr 
@@ -208,21 +210,10 @@ state 17
 	'-'  shift 5
 	.  error
 
-	expr  goto 35
-
-state 18
-	expr:  expr '+'.expr 
-
-	VALUE  shift 6
-	NOT  shift 4
-	LB  shift 3
-	'-'  shift 5
-	.  error
-
 	expr  goto 36
 
-state 19
-	expr:  expr '-'.expr 
+state 18
+	expr:  expr MATCH.expr 
 
 	VALUE  shift 6
 	NOT  shift 4
@@ -232,8 +223,8 @@ state 19
 
 	expr  goto 37
 
-state 20
-	expr:  expr '*'.expr 
+state 19
+	expr:  expr '+'.expr 
 
 	VALUE  shift 6
 	NOT  shift 4
@@ -243,8 +234,8 @@ state 20
 
 	expr  goto 38
 
-state 21
-	expr:  expr '/'.expr 
+state 20
+	expr:  expr '-'.expr 
 
 	VALUE  shift 6
 	NOT  shift 4
@@ -254,8 +245,8 @@ state 21
 
 	expr  goto 39
 
-state 22
-	expr:  expr '%'.expr 
+state 21
+	expr:  expr '*'.expr 
 
 	VALUE  shift 6
 	NOT  shift 4
@@ -265,7 +256,29 @@ state 22
 
 	expr  goto 40
 
+state 22
+	expr:  expr '/'.expr 
+
+	VALUE  shift 6
+	NOT  shift 4
+	LB  shift 3
+	'-'  shift 5
+	.  error
+
+	expr  goto 41
+
 state 23
+	expr:  expr '%'.expr 
+
+	VALUE  shift 6
+	NOT  shift 4
+	LB  shift 3
+	'-'  shift 5
+	.  error
+
+	expr  goto 42
+
+state 24
 	expr:  LB expr.RB 
 	expr:  expr.AND expr 
 	expr:  expr.OR expr 
@@ -277,6 +290,7 @@ state 23
 	expr:  expr.GT expr 
 	expr:  expr.LTE expr 
 	expr:  expr.GTE expr 
+	expr:  expr.MATCH expr 
 	expr:  expr.'+' expr 
 	expr:  expr.'-' expr 
 	expr:  expr.'*' expr 
@@ -285,7 +299,7 @@ state 23
 
 	AND  shift 8
 	OR  shift 9
-	RB  shift 41
+	RB  shift 43
 	E  shift 10
 	NE  shift 13
 	RE  shift 11
@@ -294,15 +308,16 @@ state 23
 	GT  shift 15
 	LTE  shift 16
 	GTE  shift 17
-	'+'  shift 18
-	'-'  shift 19
-	'*'  shift 20
-	'/'  shift 21
-	'%'  shift 22
+	MATCH  shift 18
+	'+'  shift 19
+	'-'  shift 20
+	'*'  shift 21
+	'/'  shift 22
+	'%'  shift 23
 	.  error
 
 
-state 24
+state 25
 	expr:  NOT expr.    (3)
 	expr:  expr.AND expr 
 	expr:  expr.OR expr 
@@ -314,6 +329,7 @@ state 24
 	expr:  expr.GT expr 
 	expr:  expr.LTE expr 
 	expr:  expr.GTE expr 
+	expr:  expr.MATCH expr 
 	expr:  expr.'+' expr 
 	expr:  expr.'-' expr 
 	expr:  expr.'*' expr 
@@ -323,7 +339,7 @@ state 24
 	.  reduce 3 (src line 52)
 
 
-state 25
+state 26
 	expr:  expr.AND expr 
 	expr:  expr.OR expr 
 	expr:  expr.E expr 
@@ -334,20 +350,21 @@ state 25
 	expr:  expr.GT expr 
 	expr:  expr.LTE expr 
 	expr:  expr.GTE expr 
+	expr:  expr.MATCH expr 
 	expr:  expr.'+' expr 
 	expr:  expr.'-' expr 
 	expr:  expr.'*' expr 
 	expr:  expr.'/' expr 
 	expr:  expr.'%' expr 
-	expr:  '-' expr.    (19)
+	expr:  '-' expr.    (20)
 
-	'*'  shift 20
-	'/'  shift 21
-	'%'  shift 22
-	.  reduce 19 (src line 136)
+	'*'  shift 21
+	'/'  shift 22
+	'%'  shift 23
+	.  reduce 20 (src line 140)
 
 
-state 26
+state 27
 	expr:  expr.AND expr 
 	expr:  expr AND expr.    (4)
 	expr:  expr.OR expr 
@@ -359,6 +376,7 @@ state 26
 	expr:  expr.GT expr 
 	expr:  expr.LTE expr 
 	expr:  expr.GTE expr 
+	expr:  expr.MATCH expr 
 	expr:  expr.'+' expr 
 	expr:  expr.'-' expr 
 	expr:  expr.'*' expr 
@@ -373,15 +391,16 @@ state 26
 	GT  shift 15
 	LTE  shift 16
 	GTE  shift 17
-	'+'  shift 18
-	'-'  shift 19
-	'*'  shift 20
-	'/'  shift 21
-	'%'  shift 22
+	MATCH  shift 18
+	'+'  shift 19
+	'-'  shift 20
+	'*'  shift 21
+	'/'  shift 22
+	'%'  shift 23
 	.  reduce 4 (src line 56)
 
 
-state 27
+state 28
 	expr:  expr.AND expr 
 	expr:  expr.OR expr 
 	expr:  expr OR expr.    (5)
@@ -393,6 +412,7 @@ state 27
 	expr:  expr.GT expr 
 	expr:  expr.LTE expr 
 	expr:  expr.GTE expr 
+	expr:  expr.MATCH expr 
 	expr:  expr.'+' expr 
 	expr:  expr.'-' expr 
 	expr:  expr.'*' expr 
@@ -408,15 +428,16 @@ state 27
 	GT  shift 15
 	LTE  shift 16
 	GTE  shift 17
-	'+'  shift 18
-	'-'  shift 19
-	'*'  shift 20
-	'/'  shift 21
-	'%'  shift 22
+	MATCH  shift 18
+	'+'  shift 19
+	'-'  shift 20
+	'*'  shift 21
+	'/'  shift 22
+	'%'  shift 23
 	.  reduce 5 (src line 60)
 
 
-state 28
+state 29
 	expr:  expr.AND expr 
 	expr:  expr.OR expr 
 	expr:  expr.E expr 
@@ -428,21 +449,22 @@ state 28
 	expr:  expr.GT expr 
 	expr:  expr.LTE expr 
 	expr:  expr.GTE expr 
+	expr:  expr.MATCH expr 
 	expr:  expr.'+' expr 
 	expr:  expr.'-' expr 
 	expr:  expr.'*' expr 
 	expr:  expr.'/' expr 
 	expr:  expr.'%' expr 
 
-	'+'  shift 18
-	'-'  shift 19
-	'*'  shift 20
-	'/'  shift 21
-	'%'  shift 22
+	'+'  shift 19
+	'-'  shift 20
+	'*'  shift 21
+	'/'  shift 22
+	'%'  shift 23
 	.  reduce 6 (src line 64)
 
 
-state 29
+state 30
 	expr:  expr.AND expr 
 	expr:  expr.OR expr 
 	expr:  expr.E expr 
@@ -454,21 +476,22 @@ state 29
 	expr:  expr.GT expr 
 	expr:  expr.LTE expr 
 	expr:  expr.GTE expr 
+	expr:  expr.MATCH expr 
 	expr:  expr.'+' expr 
 	expr:  expr.'-' expr 
 	expr:  expr.'*' expr 
 	expr:  expr.'/' expr 
 	expr:  expr.'%' expr 
 
-	'+'  shift 18
-	'-'  shift 19
-	'*'  shift 20
-	'/'  shift 21
-	'%'  shift 22
+	'+'  shift 19
+	'-'  shift 20
+	'*'  shift 21
+	'/'  shift 22
+	'%'  shift 23
 	.  reduce 7 (src line 68)
 
 
-state 30
+state 31
 	expr:  expr.AND expr 
 	expr:  expr.OR expr 
 	expr:  expr.E expr 
@@ -480,21 +503,22 @@ state 30
 	expr:  expr.GT expr 
 	expr:  expr.LTE expr 
 	expr:  expr.GTE expr 
+	expr:  expr.MATCH expr 
 	expr:  expr.'+' expr 
 	expr:  expr.'-' expr 
 	expr:  expr.'*' expr 
 	expr:  expr.'/' expr 
 	expr:  expr.'%' expr 
 
-	'+'  shift 18
-	'-'  shift 19
-	'*'  shift 20
-	'/'  shift 21
-	'%'  shift 22
+	'+'  shift 19
+	'-'  shift 20
+	'*'  shift 21
+	'/'  shift 22
+	'%'  shift 23
 	.  reduce 8 (src line 72)
 
 
-state 31
+state 32
 	expr:  expr.AND expr 
 	expr:  expr.OR expr 
 	expr:  expr.E expr 
@@ -506,21 +530,22 @@ state 31
 	expr:  expr.GT expr 
 	expr:  expr.LTE expr 
 	expr:  expr.GTE expr 
+	expr:  expr.MATCH expr 
 	expr:  expr.'+' expr 
 	expr:  expr.'-' expr 
 	expr:  expr.'*' expr 
 	expr:  expr.'/' expr 
 	expr:  expr.'%' expr 
 
-	'+'  shift 18
-	'-'  shift 19
-	'*'  shift 20
-	'/'  shift 21
-	'%'  shift 22
+	'+'  shift 19
+	'-'  shift 20
+	'*'  shift 21
+	'/'  shift 22
+	'%'  shift 23
 	.  reduce 9 (src line 76)
 
 
-state 32
+state 33
 	expr:  expr.AND expr 
 	expr:  expr.OR expr 
 	expr:  expr.E expr 
@@ -532,44 +557,19 @@ state 32
 	expr:  expr.GT expr 
 	expr:  expr.LTE expr 
 	expr:  expr.GTE expr 
+	expr:  expr.MATCH expr 
 	expr:  expr.'+' expr 
 	expr:  expr.'-' expr 
 	expr:  expr.'*' expr 
 	expr:  expr.'/' expr 
 	expr:  expr.'%' expr 
 
-	'+'  shift 18
-	'-'  shift 19
-	'*'  shift 20
-	'/'  shift 21
-	'%'  shift 22
+	'+'  shift 19
+	'-'  shift 20
+	'*'  shift 21
+	'/'  shift 22
+	'%'  shift 23
 	.  reduce 10 (src line 80)
-
-
-state 33
-	expr:  expr.AND expr 
-	expr:  expr.OR expr 
-	expr:  expr.E expr 
-	expr:  expr.RE expr 
-	expr:  expr.NRE expr 
-	expr:  expr.NE expr 
-	expr:  expr.LT expr 
-	expr:  expr.GT expr 
-	expr:  expr GT expr.    (11)
-	expr:  expr.LTE expr 
-	expr:  expr.GTE expr 
-	expr:  expr.'+' expr 
-	expr:  expr.'-' expr 
-	expr:  expr.'*' expr 
-	expr:  expr.'/' expr 
-	expr:  expr.'%' expr 
-
-	'+'  shift 18
-	'-'  shift 19
-	'*'  shift 20
-	'/'  shift 21
-	'%'  shift 22
-	.  reduce 11 (src line 84)
 
 
 state 34
@@ -581,21 +581,22 @@ state 34
 	expr:  expr.NE expr 
 	expr:  expr.LT expr 
 	expr:  expr.GT expr 
+	expr:  expr GT expr.    (11)
 	expr:  expr.LTE expr 
-	expr:  expr LTE expr.    (12)
 	expr:  expr.GTE expr 
+	expr:  expr.MATCH expr 
 	expr:  expr.'+' expr 
 	expr:  expr.'-' expr 
 	expr:  expr.'*' expr 
 	expr:  expr.'/' expr 
 	expr:  expr.'%' expr 
 
-	'+'  shift 18
-	'-'  shift 19
-	'*'  shift 20
-	'/'  shift 21
-	'%'  shift 22
-	.  reduce 12 (src line 88)
+	'+'  shift 19
+	'-'  shift 20
+	'*'  shift 21
+	'/'  shift 22
+	'%'  shift 23
+	.  reduce 11 (src line 84)
 
 
 state 35
@@ -608,20 +609,21 @@ state 35
 	expr:  expr.LT expr 
 	expr:  expr.GT expr 
 	expr:  expr.LTE expr 
+	expr:  expr LTE expr.    (12)
 	expr:  expr.GTE expr 
-	expr:  expr GTE expr.    (13)
+	expr:  expr.MATCH expr 
 	expr:  expr.'+' expr 
 	expr:  expr.'-' expr 
 	expr:  expr.'*' expr 
 	expr:  expr.'/' expr 
 	expr:  expr.'%' expr 
 
-	'+'  shift 18
-	'-'  shift 19
-	'*'  shift 20
-	'/'  shift 21
-	'%'  shift 22
-	.  reduce 13 (src line 92)
+	'+'  shift 19
+	'-'  shift 20
+	'*'  shift 21
+	'/'  shift 22
+	'%'  shift 23
+	.  reduce 12 (src line 88)
 
 
 state 36
@@ -635,17 +637,20 @@ state 36
 	expr:  expr.GT expr 
 	expr:  expr.LTE expr 
 	expr:  expr.GTE expr 
+	expr:  expr GTE expr.    (13)
+	expr:  expr.MATCH expr 
 	expr:  expr.'+' expr 
-	expr:  expr '+' expr.    (14)
 	expr:  expr.'-' expr 
 	expr:  expr.'*' expr 
 	expr:  expr.'/' expr 
 	expr:  expr.'%' expr 
 
-	'*'  shift 20
-	'/'  shift 21
-	'%'  shift 22
-	.  reduce 14 (src line 96)
+	'+'  shift 19
+	'-'  shift 20
+	'*'  shift 21
+	'/'  shift 22
+	'%'  shift 23
+	.  reduce 13 (src line 92)
 
 
 state 37
@@ -659,17 +664,20 @@ state 37
 	expr:  expr.GT expr 
 	expr:  expr.LTE expr 
 	expr:  expr.GTE expr 
+	expr:  expr.MATCH expr 
+	expr:  expr MATCH expr.    (14)
 	expr:  expr.'+' expr 
 	expr:  expr.'-' expr 
-	expr:  expr '-' expr.    (15)
 	expr:  expr.'*' expr 
 	expr:  expr.'/' expr 
 	expr:  expr.'%' expr 
 
-	'*'  shift 20
-	'/'  shift 21
-	'%'  shift 22
-	.  reduce 15 (src line 100)
+	'+'  shift 19
+	'-'  shift 20
+	'*'  shift 21
+	'/'  shift 22
+	'%'  shift 23
+	.  reduce 14 (src line 96)
 
 
 state 38
@@ -683,14 +691,18 @@ state 38
 	expr:  expr.GT expr 
 	expr:  expr.LTE expr 
 	expr:  expr.GTE expr 
+	expr:  expr.MATCH expr 
 	expr:  expr.'+' expr 
+	expr:  expr '+' expr.    (15)
 	expr:  expr.'-' expr 
 	expr:  expr.'*' expr 
-	expr:  expr '*' expr.    (16)
 	expr:  expr.'/' expr 
 	expr:  expr.'%' expr 
 
-	.  reduce 16 (src line 109)
+	'*'  shift 21
+	'/'  shift 22
+	'%'  shift 23
+	.  reduce 15 (src line 100)
 
 
 state 39
@@ -704,14 +716,18 @@ state 39
 	expr:  expr.GT expr 
 	expr:  expr.LTE expr 
 	expr:  expr.GTE expr 
+	expr:  expr.MATCH expr 
 	expr:  expr.'+' expr 
 	expr:  expr.'-' expr 
+	expr:  expr '-' expr.    (16)
 	expr:  expr.'*' expr 
 	expr:  expr.'/' expr 
-	expr:  expr '/' expr.    (17)
 	expr:  expr.'%' expr 
 
-	.  reduce 17 (src line 118)
+	'*'  shift 21
+	'/'  shift 22
+	'%'  shift 23
+	.  reduce 16 (src line 104)
 
 
 state 40
@@ -725,31 +741,76 @@ state 40
 	expr:  expr.GT expr 
 	expr:  expr.LTE expr 
 	expr:  expr.GTE expr 
+	expr:  expr.MATCH expr 
+	expr:  expr.'+' expr 
+	expr:  expr.'-' expr 
+	expr:  expr.'*' expr 
+	expr:  expr '*' expr.    (17)
+	expr:  expr.'/' expr 
+	expr:  expr.'%' expr 
+
+	.  reduce 17 (src line 113)
+
+
+state 41
+	expr:  expr.AND expr 
+	expr:  expr.OR expr 
+	expr:  expr.E expr 
+	expr:  expr.RE expr 
+	expr:  expr.NRE expr 
+	expr:  expr.NE expr 
+	expr:  expr.LT expr 
+	expr:  expr.GT expr 
+	expr:  expr.LTE expr 
+	expr:  expr.GTE expr 
+	expr:  expr.MATCH expr 
+	expr:  expr.'+' expr 
+	expr:  expr.'-' expr 
+	expr:  expr.'*' expr 
+	expr:  expr.'/' expr 
+	expr:  expr '/' expr.    (18)
+	expr:  expr.'%' expr 
+
+	.  reduce 18 (src line 122)
+
+
+state 42
+	expr:  expr.AND expr 
+	expr:  expr.OR expr 
+	expr:  expr.E expr 
+	expr:  expr.RE expr 
+	expr:  expr.NRE expr 
+	expr:  expr.NE expr 
+	expr:  expr.LT expr 
+	expr:  expr.GT expr 
+	expr:  expr.LTE expr 
+	expr:  expr.GTE expr 
+	expr:  expr.MATCH expr 
 	expr:  expr.'+' expr 
 	expr:  expr.'-' expr 
 	expr:  expr.'*' expr 
 	expr:  expr.'/' expr 
 	expr:  expr.'%' expr 
-	expr:  expr '%' expr.    (18)
+	expr:  expr '%' expr.    (19)
 
-	.  reduce 18 (src line 127)
+	.  reduce 19 (src line 131)
 
 
-state 41
+state 43
 	expr:  LB expr RB.    (2)
 
 	.  reduce 2 (src line 48)
 
 
-23 terminals, 3 nonterminals
-21 grammar rules, 42/8000 states
+24 terminals, 3 nonterminals
+22 grammar rules, 44/8000 states
 0 shift/reduce, 0 reduce/reduce conflicts reported
 52 working sets used
-memory: parser 19/120000
-33 extra closures
-184 shift entries, 1 exceptions
-20 goto entries
+memory: parser 20/120000
+35 extra closures
+197 shift entries, 1 exceptions
+21 goto entries
 0 entries saved by goto default
-Optimizer space used: output 117/120000
-117 table entries, 26 zero
-maximum spread: 23, maximum offset: 22
+Optimizer space used: output 123/120000
+123 table entries, 27 zero
+maximum spread: 24, maximum offset: 23

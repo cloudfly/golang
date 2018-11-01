@@ -195,4 +195,81 @@ func TestAssert_ExecuteRegexp(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, true, result)
+
+	expr, err = New(`rx_mbps < 500 || rx_mbps > 20000 || rx_mbps == nil `)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err = expr.Execute(
+		MockKV(map[string]interface{}{
+			"rx_mbps": 4000,
+		}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, false, result)
+
+}
+
+func TestAssert_ExecuteMatch(t *testing.T) {
+	expr, err := New(`host = '*.50.50'`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, item := range []string{
+		"10.1.50.50",
+		".50.50",
+		"abc.50.50",
+	} {
+		result, err := expr.Execute(
+			MockKV(map[string]interface{}{
+				"host": item,
+			}),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, true, result)
+	}
+
+	for _, item := range []string{
+		"10.150.50",
+		"50.50",
+		"abc50.50",
+		"abc.50.50.10",
+	} {
+		result, err := expr.Execute(
+			MockKV(map[string]interface{}{
+				"host": item,
+			}),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, false, result)
+	}
+
+	expr, err = New(`host = "*50.50*"`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range []string{
+		"10.150.50",
+		"50.50",
+		"abc50.50",
+		"abc.50.50.10",
+	} {
+		result, err := expr.Execute(
+			MockKV(map[string]interface{}{
+				"host": item,
+			}),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, true, result)
+	}
+
 }

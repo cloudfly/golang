@@ -62,6 +62,8 @@ func (l *Assert) Lex(lval *yySymType) int {
 		return AND
 	case s == "||":
 		return OR
+	case s == "=":
+		return MATCH
 	case s == "==":
 		return E
 	case s == "=~":
@@ -221,11 +223,13 @@ func nextState(state int, c rune) (int, bool, error) {
 		}
 		// !, >, <
 		return 0, true, nil
-	case 6: // =, only accept =, to make ==
+	case 6: // =， ==， =~
 		if c == '=' || c == '~' {
+			// ==, =~
 			return CUT, false, nil
 		}
-		return 0, false, fmt.Errorf("illegle letter '%c' behind '=', should be '=' or '~'", c)
+		// =
+		return 0, true, nil
 	case 7: // string in ""
 		if c == '"' {
 			return CUT, false, nil

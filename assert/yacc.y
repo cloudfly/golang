@@ -31,7 +31,7 @@ package assert
 %left EOF
 %left OR
 %left AND
-%left E NE LT GT LTE GTE RE NRE
+%left E NE LT GT LTE GTE RE NRE MATCH
 %left '+' '-'
 %left '*' '/' '%'
 %left LB RB
@@ -92,6 +92,10 @@ expr: LB expr RB
     | expr GTE expr
     { 
         $$ = $1.GTE($3)                
+    }
+    | expr MATCH expr
+    {
+        $$ = $1.MATCH($3)
     }
     | expr '+' expr
     { 
