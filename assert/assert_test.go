@@ -273,3 +273,54 @@ func TestAssert_ExecuteMatch(t *testing.T) {
 	}
 
 }
+
+func TestAssert_Error(t *testing.T) {
+	expr, err := New(`value > 200`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := expr.Execute(
+		MockKV(map[string]interface{}{
+			"value": 1000,
+		}),
+	)
+	assert.NoError(t, err)
+	assert.True(t, result)
+	result, err = expr.Execute(
+		MockKV(map[string]interface{}{
+			"value": 100,
+		}),
+	)
+	assert.NoError(t, err)
+	assert.False(t, result)
+
+	_, err = expr.Execute(
+		MockKV(map[string]interface{}{
+			"value": nil,
+		}),
+	)
+	assert.Error(t, err)
+	assert.Equal(t, "variable is a nil value", err.Error())
+
+	_, err = expr.Execute(
+		MockKV(map[string]interface{}{
+			"value": "gogogo",
+		}),
+	)
+	assert.Error(t, err)
+	assert.Equal(t, "variable is not a number", err.Error())
+
+	expr, err = New(`value =~ "wskl).]"`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = expr.Execute(
+		MockKV(map[string]interface{}{
+			"value": 1000,
+		}),
+	)
+	assert.Error(t, err)
+	assert.Equal(t, "invalid regexp", err.Error())
+
+}

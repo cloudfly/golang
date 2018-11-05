@@ -60,7 +60,7 @@ const yyEofCode = 1
 const yyErrCode = 2
 const yyInitialStackSize = 16
 
-//line yacc.y:149
+//line yacc.y:201
 
 //line yacctab:1
 var yyExca = [...]int{
@@ -158,7 +158,7 @@ var yyErrorMessages = [...]struct {
 
 var (
 	yyDebug        = 0
-	yyErrorVerbose = false
+	yyErrorVerbose = true
 )
 
 type yyLexer interface {
@@ -501,133 +501,185 @@ yydefault:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		//line yacc.y:53
 		{
-			yyVAL.value = yyDollar[2].value.Not()
+			var err int
+			yyVAL.value, err = yyDollar[2].value.Not()
+			if err != NoError {
+				return err
+			}
 		}
 	case 4:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line yacc.y:57
+		//line yacc.y:61
 		{
-			yyVAL.value = yyDollar[1].value.And(yyDollar[3].value)
+			var err int
+			yyVAL.value, err = yyDollar[1].value.And(yyDollar[3].value)
+			if err != NoError {
+				return err
+			}
 		}
 	case 5:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line yacc.y:61
+		//line yacc.y:69
 		{
-			yyVAL.value = yyDollar[1].value.Or(yyDollar[3].value)
+			var err int
+			yyVAL.value, err = yyDollar[1].value.Or(yyDollar[3].value)
+			if err != NoError {
+				return err
+			}
 		}
 	case 6:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line yacc.y:65
+		//line yacc.y:77
 		{
-			yyVAL.value = yyDollar[1].value.E(yyDollar[3].value)
+			var err int
+			yyVAL.value, err = yyDollar[1].value.E(yyDollar[3].value)
+			if err != NoError {
+				return err
+			}
 		}
 	case 7:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line yacc.y:69
+		//line yacc.y:85
 		{
-			yyVAL.value = yyDollar[1].value.RE(yyDollar[3].value)
+			var err int
+			yyVAL.value, err = yyDollar[1].value.RE(yyDollar[3].value)
+			if err != NoError {
+				return err
+			}
 		}
 	case 8:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line yacc.y:73
+		//line yacc.y:93
 		{
-			yyVAL.value = yyDollar[1].value.NRE(yyDollar[3].value)
+			var err int
+			yyVAL.value, err = yyDollar[1].value.NRE(yyDollar[3].value)
+			if err != NoError {
+				return err
+			}
 		}
 	case 9:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line yacc.y:77
+		//line yacc.y:101
 		{
-			yyVAL.value = yyDollar[1].value.NE(yyDollar[3].value)
+			var err int
+			yyVAL.value, err = yyDollar[1].value.NE(yyDollar[3].value)
+			if err != NoError {
+				return err
+			}
 		}
 	case 10:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line yacc.y:81
+		//line yacc.y:109
 		{
-			yyVAL.value = yyDollar[1].value.LT(yyDollar[3].value)
+			var err int
+			yyVAL.value, err = yyDollar[1].value.LT(yyDollar[3].value)
+			if err != NoError {
+				return err
+			}
 		}
 	case 11:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line yacc.y:85
+		//line yacc.y:117
 		{
-			yyVAL.value = yyDollar[1].value.GT(yyDollar[3].value)
+			var err int
+			yyVAL.value, err = yyDollar[1].value.GT(yyDollar[3].value)
+			if err != NoError {
+				return err
+			}
 		}
 	case 12:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line yacc.y:89
+		//line yacc.y:125
 		{
-			yyVAL.value = yyDollar[1].value.LTE(yyDollar[3].value)
+			var err int
+			yyVAL.value, err = yyDollar[1].value.LTE(yyDollar[3].value)
+			if err != NoError {
+				return err
+			}
 		}
 	case 13:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line yacc.y:93
+		//line yacc.y:133
 		{
-			yyVAL.value = yyDollar[1].value.GTE(yyDollar[3].value)
+			var err int
+			yyVAL.value, err = yyDollar[1].value.GTE(yyDollar[3].value)
+			if err != NoError {
+				return err
+			}
 		}
 	case 14:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line yacc.y:97
+		//line yacc.y:141
 		{
-			yyVAL.value = yyDollar[1].value.MATCH(yyDollar[3].value)
+			var err int
+			yyVAL.value, err = yyDollar[1].value.MATCH(yyDollar[3].value)
+			if err != NoError {
+				return err
+			}
 		}
 	case 15:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line yacc.y:101
+		//line yacc.y:149
 		{
-			yyVAL.value = yyDollar[1].value.Add(yyDollar[3].value)
+			var err int
+			yyVAL.value, err = yyDollar[1].value.Add(yyDollar[3].value)
+			if err != NoError {
+				return err
+			}
 		}
 	case 16:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line yacc.y:105
+		//line yacc.y:157
 		{
-			v, err := yyDollar[1].value.Sub(yyDollar[3].value)
-			if err != nil {
-				yyVAL.value = Value{}
-				return ErrNotNumber
+			var err int
+			yyVAL.value, err = yyDollar[1].value.Sub(yyDollar[3].value)
+			if err != NoError {
+				return err
 			}
-			yyVAL.value = v
 		}
 	case 17:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line yacc.y:114
+		//line yacc.y:165
 		{
-			v, err := yyDollar[1].value.Multi(yyDollar[3].value)
-			if err != nil {
-				yyVAL.value = Value{}
-				return ErrNotNumber
+			var err int
+			yyVAL.value, err = yyDollar[1].value.Multi(yyDollar[3].value)
+			if err != NoError {
+				return err
 			}
-			yyVAL.value = v
 		}
 	case 18:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line yacc.y:123
+		//line yacc.y:173
 		{
-			v, err := yyDollar[1].value.Div(yyDollar[3].value)
-			if err != nil {
-				yyVAL.value = Value{}
-				return ErrNotNumber
+			var err int
+			yyVAL.value, err = yyDollar[1].value.Div(yyDollar[3].value)
+			if err != NoError {
+				return err
 			}
-			yyVAL.value = v
 		}
 	case 19:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line yacc.y:132
+		//line yacc.y:181
 		{
-			v, err := yyDollar[1].value.Mod(yyDollar[3].value)
-			if err != nil {
-				yyVAL.value = Value{}
-				return ErrNotNumber
+			var err int
+			yyVAL.value, err = yyDollar[1].value.Mod(yyDollar[3].value)
+			if err != NoError {
+				return err
 			}
-			yyVAL.value = v
 		}
 	case 20:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line yacc.y:141
+		//line yacc.y:189
 		{
-			yyVAL.value, _ = NewValue(0).Sub(yyDollar[2].value)
+			var err int
+			yyVAL.value, err = NewValue(0).Sub(yyDollar[2].value)
+			if err != NoError {
+				return err
+			}
 		}
 	case 21:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line yacc.y:145
+		//line yacc.y:197
 		{
 			yyVAL.value = yyDollar[1].value
 		}

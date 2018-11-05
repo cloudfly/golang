@@ -51,95 +51,147 @@ expr: LB expr RB
     }
     | NOT expr 
     {
-        $$ = $2.Not()
+        var err int
+        $$, err = $2.Not()
+        if err != NoError {
+            return err
+        }
     }
     | expr AND expr 
     {
-        $$ = $1.And($3)
+        var err int
+        $$, err = $1.And($3)
+        if err != NoError {
+            return err
+        }
     }
     | expr OR expr 
     {
-        $$ = $1.Or($3)
+        var err int
+        $$, err = $1.Or($3)
+        if err != NoError {
+            return err
+        }
     }
     | expr E expr
     { 
-        $$ = $1.E($3)
+        var err int
+        $$, err = $1.E($3)
+        if err != NoError {
+            return err
+        }
     }
     | expr RE expr
     {
-        $$ = $1.RE($3)
+        var err int
+        $$, err = $1.RE($3)
+        if err != NoError {
+            return err
+        }
     }
     | expr NRE expr
     {
-        $$ = $1.NRE($3)
+        var err int
+        $$, err = $1.NRE($3)
+        if err != NoError {
+            return err
+        }
     }
     | expr NE expr
     { 
-        $$ = $1.NE($3) 
+        var err int
+        $$, err = $1.NE($3) 
+        if err != NoError {
+            return err
+        }
     }
     | expr LT expr
     {
-        $$ = $1.LT($3)
+        var err int
+        $$, err = $1.LT($3)
+        if err != NoError {
+            return err
+        }
     }
     | expr GT expr
     { 
-        $$ = $1.GT($3)
+        var err int
+        $$, err = $1.GT($3)
+        if err != NoError {
+            return err
+        }
     }
     | expr LTE expr
     {
-        $$ = $1.LTE($3)        
+        var err int
+        $$, err = $1.LTE($3)        
+        if err != NoError {
+            return err
+        }
     }
     | expr GTE expr
     { 
-        $$ = $1.GTE($3)                
+        var err int
+        $$, err = $1.GTE($3)                
+        if err != NoError {
+            return err
+        }
     }
     | expr MATCH expr
     {
-        $$ = $1.MATCH($3)
+        var err int
+        $$, err = $1.MATCH($3)
+        if err != NoError {
+            return err
+        }
     }
     | expr '+' expr
     { 
-        $$ = $1.Add($3) 
+        var err int
+        $$, err = $1.Add($3) 
+        if err != NoError {
+            return err
+        }
     }
 	| expr '-' expr
     { 
-        v, err := $1.Sub($3)
-        if err != nil {
-            $$ = Value{}
-            return ErrNotNumber
+        var err int
+        $$, err = $1.Sub($3)
+        if err != NoError {
+            return err
         }
-        $$ = v
     }
 	| expr '*' expr
     {
-        v, err := $1.Multi($3)
-        if err != nil {
-            $$ = Value{}
-            return ErrNotNumber
+        var err int
+        $$, err = $1.Multi($3)
+        if err != NoError {
+            return err
         }
-        $$ = v
     }
 	| expr '/' expr
     {
-        v, err := $1.Div($3)
-        if err != nil {
-            $$ = Value{}
-            return ErrNotNumber
+        var err int
+        $$, err = $1.Div($3)
+        if err != NoError {
+            return err
         }
-        $$ = v
     }
 	| expr '%' expr
     {
-        v, err := $1.Mod($3)
-        if err != nil {
-            $$ = Value{}
-            return ErrNotNumber
+        var err int
+        $$, err = $1.Mod($3)
+        if err != NoError {
+            return err
         }
-        $$ = v
     }
     | '-' expr
     {
-        $$, _ = NewValue(0).Sub($2)
+        var err int
+        $$, err = NewValue(0).Sub($2)
+        if err != NoError {
+            return err
+        }
     }
     | VALUE
     { 

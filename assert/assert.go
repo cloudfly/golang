@@ -14,8 +14,7 @@ import (
 )
 
 const (
-	ErrNotNumber = 1
-	CUT          = 100000
+	CUT = 100000
 )
 
 type kvReader interface {
@@ -119,8 +118,11 @@ func (assert *Assert) Execute(kv kvReader) (bool, error) {
 	assert.Lock()
 	defer assert.Unlock()
 	assert.kv = kv
-	yyParse(assert)
+	code := yyParse(assert)
 	assert.pos = 0 // reset the pos
+	if code != NoError {
+		return false, code2err(code)
+	}
 	return assert.answer, assert.err
 }
 
