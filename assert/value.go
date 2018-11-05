@@ -203,10 +203,11 @@ func (v Value) NRE(v2 Value) (Value, int) {
 }
 
 func (v Value) NE(v2 Value) (Value, int) {
-	return Value{
-		val:   v.String() != v2.String(),
-		vType: Boolean,
-	}, NoError
+	result, code := v.E(v2)
+	if code != NoError {
+		return result, code
+	}
+	return result.Not()
 }
 
 func (v Value) GT(v2 Value) (Value, int) {
