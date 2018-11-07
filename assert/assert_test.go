@@ -323,4 +323,15 @@ func TestAssert_Error(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, "invalid regexp", err.Error())
 
+	expr, err = New(`value == nil`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ok, err := expr.Execute(
+		MockKV(map[string]interface{}{
+			"value": nil,
+		}),
+	)
+	assert.NoError(t, err)
+	assert.True(t, ok)
 }
