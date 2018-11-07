@@ -25,7 +25,7 @@ type Assert struct {
 	*sync.Mutex
 	data   []string
 	pos    int
-	answer bool
+	answer Value
 	kv     kvReader
 	err    error
 }
@@ -49,7 +49,7 @@ func (l *Assert) Lex(lval *yySymType) int {
 	l.pos++
 	switch {
 	case len(s) >= 2 && (s[0] == '"' || s[0] == '\'' || s[0] == '`'):
-		lval.value = NewValue(s[1 : len(s)-1])
+		lval.value = NewValue("", s[1:len(s)-1])
 		return VALUE
 	case s == "(":
 		return LB
@@ -82,26 +82,26 @@ func (l *Assert) Lex(lval *yySymType) int {
 	case len(s) >= 1 && unicode.IsNumber(rune(s[0])):
 		f, err := strconv.ParseFloat(s, 64)
 		if err == nil {
-			lval.value = NewValue(f)
+			lval.value = NewValue("", f)
 			return VALUE
 		}
 		return EOF
 	case len(s) == 1 && !unicode.IsLetter(rune(s[0])): // +, -, *, /, %
 		return int(s[0])
 	case s == "true":
-		lval.value = NewValue(true)
+		lval.value = NewValue("", true)
 		return VALUE
 	case s == "false":
-		lval.value = NewValue(false)
+		lval.value = NewValue("", false)
 		return VALUE
 	case s == "nil":
-		lval.value = NewValue(nil)
+		lval.value = NewValue("", nil)
 		return VALUE
 	default:
 		if l.kv == nil {
-			lval.value = NewValue(nil)
+			lval.value = NewValue("", nil)
 		} else {
-			lval.value = NewValue(l.kv.Get(s))
+			lval.value = NewValue(s, l.kv.Get(s))
 		}
 		return VALUE
 	}
@@ -118,12 +118,15 @@ func (assert *Assert) Execute(kv kvReader) (bool, error) {
 	assert.Lock()
 	defer assert.Unlock()
 	assert.kv = kv
-	code := yyParse(assert)
+	yyParse(assert)
 	assert.pos = 0 // reset the pos
-	if code != NoError {
-		return false, code2err(code)
+	if assert.err != nil {
+		return false, assert.err
 	}
-	return assert.answer, assert.err
+	if err := assert.answer.Error(); err != nil {
+		return false, err
+	}
+	return assert.answer.Boolean(), nil
 }
 
 func (assert *Assert) DataAndPos() ([]string, int) {

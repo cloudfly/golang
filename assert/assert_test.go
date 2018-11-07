@@ -301,7 +301,7 @@ func TestAssert_Error(t *testing.T) {
 		}),
 	)
 	assert.Error(t, err)
-	assert.Equal(t, "variable is a nil value", err.Error())
+	t.Log(err.Error())
 
 	_, err = expr.Execute(
 		MockKV(map[string]interface{}{
@@ -309,7 +309,7 @@ func TestAssert_Error(t *testing.T) {
 		}),
 	)
 	assert.Error(t, err)
-	assert.Equal(t, "variable is not a number", err.Error())
+	t.Log(err.Error())
 
 	expr, err = New(`value =~ "wskl).]"`)
 	if err != nil {
@@ -321,9 +321,9 @@ func TestAssert_Error(t *testing.T) {
 		}),
 	)
 	assert.Error(t, err)
-	assert.Equal(t, "invalid regexp", err.Error())
+	t.Log(err.Error())
 
-	expr, err = New(`value == nil`)
+	expr, err = New(`value == nil || value > 1000`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -340,4 +340,11 @@ func TestAssert_Error(t *testing.T) {
 	)
 	assert.NoError(t, err)
 	assert.True(t, ok)
+
+	expr, _ = New(`value != nil && value > 1000`)
+	ok, err = expr.Execute(
+		MockKV(map[string]interface{}{}),
+	)
+	assert.NoError(t, err)
+	assert.False(t, ok)
 }
