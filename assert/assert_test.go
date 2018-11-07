@@ -347,4 +347,25 @@ func TestAssert_Error(t *testing.T) {
 	)
 	assert.NoError(t, err)
 	assert.False(t, ok)
+
+	expr, _ = New(`value == nil`)
+	ok, err = expr.Execute(
+		MockKV(map[string]interface{}{}),
+	)
+	assert.NoError(t, err)
+	assert.True(t, ok)
+
+	expr, _ = New(`value != nil`)
+	ok, err = expr.Execute(
+		MockKV(map[string]interface{}{}),
+	)
+	assert.NoError(t, err)
+	assert.False(t, ok)
+
+	expr, _ = New(`value == ""`)
+	ok, err = expr.Execute(
+		MockKV(map[string]interface{}{}),
+	)
+	assert.NoError(t, err)
+	assert.False(t, ok)
 }
