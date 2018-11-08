@@ -379,5 +379,27 @@ func TestAssert_NilValue(t *testing.T) {
 	)
 	assert.NoError(t, err)
 	assert.False(t, ok)
+}
 
+func TestAssert_NoValue(t *testing.T) {
+	expr, _ := New(`nil == nil`)
+	ok, err := expr.Execute(
+		MockKV(map[string]interface{}{}),
+	)
+	assert.NoError(t, err)
+	assert.True(t, ok)
+
+	expr, _ = New(`123 == 123`)
+	ok, err = expr.Execute(
+		MockKV(map[string]interface{}{}),
+	)
+	assert.NoError(t, err)
+	assert.True(t, ok)
+
+	expr, _ = New(`"123" == "123"`)
+	ok, err = expr.Execute(
+		MockKV(map[string]interface{}{}),
+	)
+	assert.NoError(t, err)
+	assert.True(t, ok)
 }
