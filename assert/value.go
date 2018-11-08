@@ -153,17 +153,23 @@ func (v Value) Not() Value {
 }
 
 func (v Value) And(v2 Value) Value {
-	return Value{
-		val:   v.Boolean() && v2.Boolean(),
-		vType: Boolean,
+	if v.vType == Error {
+		return v
 	}
+	if !v.Boolean() {
+		return v
+	}
+	return v2
 }
 
 func (v Value) Or(v2 Value) Value {
-	return Value{
-		val:   v.Boolean() || v2.Boolean(),
-		vType: Boolean,
+	if v.vType == Error {
+		return v
 	}
+	if v.Boolean() {
+		return v
+	}
+	return v2
 }
 
 func (v Value) E(v2 Value) Value {

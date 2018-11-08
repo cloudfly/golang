@@ -323,7 +323,10 @@ func TestAssert_Error(t *testing.T) {
 	assert.Error(t, err)
 	t.Log(err.Error())
 
-	expr, err = New(`value == nil || value > 1000`)
+}
+
+func TestAssert_NilValue(t *testing.T) {
+	expr, err := New(`value == nil || value > 1000`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -348,6 +351,14 @@ func TestAssert_Error(t *testing.T) {
 	assert.NoError(t, err)
 	assert.False(t, ok)
 
+	expr, _ = New(`value > 1000 || value == nil`)
+	ok, err = expr.Execute(
+		MockKV(map[string]interface{}{}),
+	)
+	// value > 1000 在前面, 先执行会出错
+	assert.Error(t, err)
+	t.Log(err.Error())
+
 	expr, _ = New(`value == nil`)
 	ok, err = expr.Execute(
 		MockKV(map[string]interface{}{}),
@@ -368,4 +379,5 @@ func TestAssert_Error(t *testing.T) {
 	)
 	assert.NoError(t, err)
 	assert.False(t, ok)
+
 }
