@@ -276,3 +276,12 @@ func nextState(state int, c rune) (int, bool, error) {
 	}
 	return 0, false, errors.Errorf("unknown state %d", state)
 }
+
+// MapKV 以 map 为基础实现 kvReader
+type MapKV map[string]interface{}
+
+// Get 获取变量值
+func (kv MapKV) Get(key string) interface{} {
+	v, _ := kv[key]
+	return v
+}
