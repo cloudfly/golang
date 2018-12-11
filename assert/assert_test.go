@@ -15,7 +15,7 @@ func (kv MockKV) Get(key string) interface{} {
 }
 
 func TestParse(t *testing.T) {
-	items, err := parse(`  A.a == B.b && 234.2342 > 234 || ("hello" == A.bcd && A.b / B.hello >= 23.24)`)
+	items, variables, err := parse(`  A.a == B.b && 234.2342 > 234 || ("hello" == A.bcd && A.b / B.hello >= 23.24)`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,6 +36,7 @@ func TestParse(t *testing.T) {
 	assert.Equal(t, `>=`, items[16])
 	assert.Equal(t, `23.24`, items[17])
 	assert.Equal(t, `)`, items[18])
+	assert.Equal(t, []string{"A.a", "B.b", "A.bcd", "A.b", "B.hello"}, variables)
 }
 
 func TestAssert_ExecuteNormal(t *testing.T) {

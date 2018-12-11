@@ -109,9 +109,8 @@ func (v Value) Float() (float64, error) {
 	case Nil:
 		if v.name == "" {
 			return 0, errors.New("can not convert nil value to number")
-		} else {
-			return 0, fmt.Errorf("variable '%s' is nil, can not convert to number", v.name)
 		}
+		return 0, fmt.Errorf("variable '%s' is nil, can not convert to number", v.name)
 	case Error:
 		return 0, fmt.Errorf("%v", v.val)
 	}
