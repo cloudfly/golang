@@ -153,8 +153,8 @@ func (l *Assert) Variables() []string {
 }
 
 func parse(data string) ([]string, []string, error) {
-	items := make([]string, 0, 256)
-	variables := make([]string, 0, 256)
+	items := make([]string, 0, 8)
+	variables := make([]string, 0, 4)
 	var (
 		prevState         = 0
 		state, start, cut = 0, 0, false
