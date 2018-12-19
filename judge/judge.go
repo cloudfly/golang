@@ -6,7 +6,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/cloudfly/log"
+	log "github.com/Sirupsen/logrus"
 	etcd "github.com/coreos/etcd/client"
 	"github.com/pkg/errors"
 )
@@ -73,7 +73,7 @@ func (c *Candidate) hold() {
 	}
 	ticker := time.Tick(t)
 	key := fmt.Sprintf("%s/members/%s", c.prefix, c.advertise)
-	logger := log.With("advertise", c.advertise).With("prefix", c.prefix)
+	logger := log.WithField("advertise", c.advertise).WithField("prefix", c.prefix)
 	ctx := context.Background()
 	done := c.ctx.Done()
 	for {
@@ -94,7 +94,7 @@ func (c *Candidate) hold() {
 }
 
 func (c *Candidate) elect() {
-	logger := log.With("advertise", c.advertise).With("prefix", c.prefix)
+	logger := log.WithField("advertise", c.advertise).WithField("prefix", c.prefix)
 	logger.Debug("join the service")
 
 	var (

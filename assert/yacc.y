@@ -31,17 +31,16 @@ package assert
 %left EOF
 %left OR
 %left AND
-%left E NE LT GT LTE GTE RE NRE
+%left E NE LT GT LTE GTE RE NRE MATCH
 %left '+' '-'
 %left '*' '/' '%'
 %left LB RB
 %right NOT
-
 %%
 
 statement: expr EOF
     {
-        yylex.(*Assert).answer = $1.Boolean()
+        yylex.(*Assert).answer = $1
         $$ = $1
         return 0
     }
@@ -94,45 +93,33 @@ expr: LB expr RB
     { 
         $$ = $1.GTE($3)                
     }
+    | expr MATCH expr
+    {
+        $$ = $1.MATCH($3)
+    }
     | expr '+' expr
     { 
         $$ = $1.Add($3) 
     }
 	| expr '-' expr
     { 
-        v, err := $1.Sub($3)
-        if err != nil {
-            $$ = Value{}
-            return ErrNotNumber
-        }
-        $$ = v
+        $$ = $1.Sub($3)
     }
 	| expr '*' expr
     {
-        v, err := $1.Multi($3)
-        if err != nil {
-            $$ = Value{}
-            return ErrNotNumber
-        }
-        $$ = v
+        $$ = $1.Multi($3)
     }
 	| expr '/' expr
     {
-        v, err := $1.Div($3)
-        if err != nil {
-            $$ = Value{}
-            return ErrNotNumber
-        }
-        $$ = v
+        $$ = $1.Div($3)
     }
 	| expr '%' expr
     {
-        v, err := $1.Mod($3)
-        if err != nil {
-            $$ = Value{}
-            return ErrNotNumber
-        }
-        $$ = v
+        $$ = $1.Mod($3)
+    }
+    | '-' expr
+    {
+        $$ = NewValue("", 0).Sub($2)
     }
     | VALUE
     { 

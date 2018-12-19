@@ -7,38 +7,46 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 
 	"github.com/pkg/errors"
 )
 
+// CUT code
 const (
-	ErrNotNumber = 1
-	CUT          = 100000
+	CUT = 100000
 )
 
 type kvReader interface {
 	Get(key string) interface{}
 }
 
+// Assert 代表一个表达式
 type Assert struct {
-	data   []string
-	pos    int
-	answer bool
-	kv     kvReader
-	err    error
+	*sync.Mutex
+	data      []string
+	variables []string
+	pos       int
+	answer    Value
+	kv        kvReader
+	err       error
 }
 
+// New 编译代码生成表达式
 func New(code string) (*Assert, error) {
-	items, err := parse(code)
+	items, variables, err := parse(strings.TrimSpace(code))
 	if err != nil {
 		return nil, err
 	}
 	return &Assert{
-		data: items,
+		Mutex:     &sync.Mutex{},
+		data:      items,
+		variables: variables,
 	}, nil
 }
 
+// Lex 为 yacc 使用
 func (l *Assert) Lex(lval *yySymType) int {
 	if l.pos >= len(l.data) {
 		return EOF
@@ -47,7 +55,7 @@ func (l *Assert) Lex(lval *yySymType) int {
 	l.pos++
 	switch {
 	case len(s) >= 2 && (s[0] == '"' || s[0] == '\'' || s[0] == '`'):
-		lval.value = NewValue(s[1 : len(s)-1])
+		lval.value = NewValue("", s[1:len(s)-1])
 		return VALUE
 	case s == "(":
 		return LB
@@ -59,6 +67,8 @@ func (l *Assert) Lex(lval *yySymType) int {
 		return AND
 	case s == "||":
 		return OR
+	case s == "=":
+		return MATCH
 	case s == "==":
 		return E
 	case s == "=~":
@@ -78,31 +88,32 @@ func (l *Assert) Lex(lval *yySymType) int {
 	case len(s) >= 1 && unicode.IsNumber(rune(s[0])):
 		f, err := strconv.ParseFloat(s, 64)
 		if err == nil {
-			lval.value = NewValue(f)
+			lval.value = NewValue("", f)
 			return VALUE
 		}
 		return EOF
 	case len(s) == 1 && !unicode.IsLetter(rune(s[0])): // +, -, *, /, %
 		return int(s[0])
 	case s == "true":
-		lval.value = NewValue(true)
+		lval.value = NewValue("", true)
 		return VALUE
 	case s == "false":
-		lval.value = NewValue(false)
+		lval.value = NewValue("", false)
 		return VALUE
 	case s == "nil":
-		lval.value = NewValue(nil)
+		lval.value = NewValue("", nil)
 		return VALUE
 	default:
 		if l.kv == nil {
-			lval.value = NewValue(nil)
+			lval.value = NewValue("", nil)
 		} else {
-			lval.value = NewValue(l.kv.Get(s))
+			lval.value = NewValue(s, l.kv.Get(s))
 		}
 		return VALUE
 	}
 }
 
+// Error 为 yacc 所用
 func (l *Assert) Error(s string) {
 	if s != "" {
 		l.err = errors.New(s)
@@ -110,38 +121,63 @@ func (l *Assert) Error(s string) {
 	}
 }
 
-func (assert *Assert) Execute(kv kvReader) (bool, error) {
-	assert.kv = kv
-	yyParse(assert)
-	assert.pos = 0 // reset the pos
-	return assert.answer, assert.err
+// Execute 使用参数中给定的变量, 执行表达式并返回结果
+// 执行过程中出现任何错误都会返回 error, 比如字符串与数字比较等等
+func (l *Assert) Execute(kv kvReader) (bool, error) {
+	l.Lock()
+	defer l.Unlock()
+	l.kv = kv
+	yyParse(l)
+	l.pos = 0 // reset the pos
+	if l.err != nil {
+		return false, l.err
+	}
+	if err := l.answer.Error(); err != nil {
+		return false, err
+	}
+	return l.answer.Boolean(), nil
 }
 
-func (assert *Assert) DataAndPos() ([]string, int) {
-	ret := make([]string, len(assert.data))
-	copy(ret, assert.data)
-	return ret, assert.pos
+// DataAndPos 返回表达式代码中的各个单元
+func (l *Assert) DataAndPos() ([]string, int) {
+	ret := make([]string, len(l.data))
+	copy(ret, l.data)
+	return ret, l.pos
 }
 
-func parse(data string) ([]string, error) {
+// Variables 返回表达式中的变量名列表
+func (l *Assert) Variables() []string {
+	ret := make([]string, len(l.variables))
+	copy(ret, l.variables)
+	return ret
+}
+
+func parse(data string) ([]string, []string, error) {
 	items := make([]string, 0, 256)
+	variables := make([]string, 0, 256)
 	var (
+		prevState         = 0
 		state, start, cut = 0, 0, false
 		err               error
 	)
 	for i := 0; i < len(data); {
+		prevState = state
 		state, cut, err = nextState(state, rune(data[i]))
 		if err != nil {
-			return nil, errors.Wrap(err, "syntax error")
+			return nil, nil, errors.Wrap(err, "syntax error")
 		} else if cut {
-			items = append(items, strings.TrimSpace(data[start:i]))
+			unit := strings.TrimSpace(data[start:i])
+			items = append(items, unit)
+			if prevState == 10 { // 10 表示是个变量
+				variables = append(variables, unit)
+			}
 			start = i
 		} else {
 			i++
 		}
 	}
 	items = append(items, strings.TrimSpace(data[start:]))
-	return items, nil
+	return items, variables, nil
 }
 
 // return nextState, cutOrNot, errorMessage
@@ -208,11 +244,13 @@ func nextState(state int, c rune) (int, bool, error) {
 		}
 		// !, >, <
 		return 0, true, nil
-	case 6: // =, only accept =, to make ==
+	case 6: // =， ==， =~
 		if c == '=' || c == '~' {
+			// ==, =~
 			return CUT, false, nil
 		}
-		return 0, false, fmt.Errorf("illegle letter '%c' behind '=', should be '=' or '~'", c)
+		// =
+		return 0, true, nil
 	case 7: // string in ""
 		if c == '"' {
 			return CUT, false, nil
@@ -237,4 +275,13 @@ func nextState(state int, c rune) (int, bool, error) {
 		return 0, true, nil
 	}
 	return 0, false, errors.Errorf("unknown state %d", state)
+}
+
+// MapKV 以 map 为基础实现 kvReader
+type MapKV map[string]interface{}
+
+// Get 获取变量值
+func (kv MapKV) Get(key string) interface{} {
+	v, _ := kv[key]
+	return v
 }

@@ -1,20 +1,14 @@
 package assert
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-type MockKV map[string]interface{}
-
-func (kv MockKV) Get(key string) interface{} {
-	v, _ := kv[key]
-	return v
-}
-
 func TestParse(t *testing.T) {
-	items, err := parse(`  A.a == B.b && 234.2342 > 234 || ("hello" == A.bcd && A.b / B.hello >= 23.24)`)
+	items, variables, err := parse(`  A.a == B.b && 234.2342 > 234 || ("hello" == A.bcd && A.b / B.hello >= 23.24)`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,6 +29,7 @@ func TestParse(t *testing.T) {
 	assert.Equal(t, `>=`, items[16])
 	assert.Equal(t, `23.24`, items[17])
 	assert.Equal(t, `)`, items[18])
+	assert.Equal(t, []string{"A.a", "B.b", "A.bcd", "A.b", "B.hello"}, variables)
 }
 
 func TestAssert_ExecuteNormal(t *testing.T) {
@@ -43,7 +38,7 @@ func TestAssert_ExecuteNormal(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := expr.Execute(
-		MockKV(map[string]interface{}{
+		MapKV(map[string]interface{}{
 			"class": "URL 监控",
 			"value": 234,
 		}),
@@ -88,7 +83,7 @@ func TestAssert_ExecuteNormal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err = expr.Execute(MockKV{
+	result, err = expr.Execute(MapKV{
 		"code":  200,
 		"rt":    56,
 		"error": "",
@@ -102,7 +97,7 @@ func TestAssert_ExecuteNormal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err = expr.Execute(MockKV{
+	result, err = expr.Execute(MapKV{
 		"host":  "172.16.50.50",
 		"time":  1533791996370402301,
 		"usage": 65.14931404914708,
@@ -111,6 +106,25 @@ func TestAssert_ExecuteNormal(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, true, result)
+
+	// test in parallel
+	wait := sync.WaitGroup{}
+	wait.Add(20)
+	for i := 0; i < 20; i++ {
+		go func() {
+			defer wait.Done()
+			result, err = expr.Execute(MapKV{
+				"host":  "172.16.50.50",
+				"time":  1533791996370402301,
+				"usage": 65.14931404914708,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			assert.Equal(t, true, result)
+		}()
+	}
+	wait.Wait()
 }
 
 func TestAssert_ExecuteRegexp(t *testing.T) {
@@ -119,7 +133,7 @@ func TestAssert_ExecuteRegexp(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := expr.Execute(
-		MockKV(map[string]interface{}{
+		MapKV(map[string]interface{}{
 			"s": "OK 200",
 		}),
 	)
@@ -129,7 +143,7 @@ func TestAssert_ExecuteRegexp(t *testing.T) {
 	assert.Equal(t, true, result)
 
 	result, err = expr.Execute(
-		MockKV(map[string]interface{}{
+		MapKV(map[string]interface{}{
 			"s": "OK 300",
 		}),
 	)
@@ -143,7 +157,7 @@ func TestAssert_ExecuteRegexp(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err = expr.Execute(
-		MockKV(map[string]interface{}{
+		MapKV(map[string]interface{}{
 			"s": "OK 200",
 		}),
 	)
@@ -152,4 +166,234 @@ func TestAssert_ExecuteRegexp(t *testing.T) {
 	}
 	assert.Equal(t, false, result)
 
+	expr, err = New(`bizType >= -10 && bizType <= -1`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err = expr.Execute(
+		MapKV(map[string]interface{}{
+			"bizType": 4,
+		}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, false, result)
+
+	result, err = expr.Execute(
+		MapKV(map[string]interface{}{
+			"bizType": -5,
+		}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, true, result)
+
+	expr, err = New(`rx_mbps < 500 || rx_mbps > 20000 || rx_mbps == nil `)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err = expr.Execute(
+		MapKV(map[string]interface{}{
+			"rx_mbps": 4000,
+		}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, false, result)
+
+}
+
+func TestAssert_ExecuteMatch(t *testing.T) {
+	expr, err := New(`host = '*.50.50'`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, item := range []string{
+		"10.1.50.50",
+		".50.50",
+		"abc.50.50",
+	} {
+		result, err := expr.Execute(
+			MapKV(map[string]interface{}{
+				"host": item,
+			}),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, true, result)
+	}
+
+	for _, item := range []string{
+		"10.150.50",
+		"50.50",
+		"abc50.50",
+		"abc.50.50.10",
+	} {
+		result, err := expr.Execute(
+			MapKV(map[string]interface{}{
+				"host": item,
+			}),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, false, result)
+	}
+
+	expr, err = New(`host = "*50.50*"`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range []string{
+		"10.150.50",
+		"50.50",
+		"abc50.50",
+		"abc.50.50.10",
+	} {
+		result, err := expr.Execute(
+			MapKV(map[string]interface{}{
+				"host": item,
+			}),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, true, result)
+	}
+
+}
+
+func TestAssert_Error(t *testing.T) {
+	expr, err := New(`value > 200`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := expr.Execute(
+		MapKV(map[string]interface{}{
+			"value": 1000,
+		}),
+	)
+	assert.NoError(t, err)
+	assert.True(t, result)
+	result, err = expr.Execute(
+		MapKV(map[string]interface{}{
+			"value": 100,
+		}),
+	)
+	assert.NoError(t, err)
+	assert.False(t, result)
+
+	_, err = expr.Execute(
+		MapKV(map[string]interface{}{
+			"value": nil,
+		}),
+	)
+	assert.Error(t, err)
+	t.Log(err.Error())
+
+	_, err = expr.Execute(
+		MapKV(map[string]interface{}{
+			"value": "gogogo",
+		}),
+	)
+	assert.Error(t, err)
+	t.Log(err.Error())
+
+	expr, err = New(`value =~ "wskl).]"`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = expr.Execute(
+		MapKV(map[string]interface{}{
+			"value": 1000,
+		}),
+	)
+	assert.Error(t, err)
+	t.Log(err.Error())
+
+}
+
+func TestAssert_NilValue(t *testing.T) {
+	expr, err := New(`value == nil || value > 1000`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ok, err := expr.Execute(
+		MapKV(map[string]interface{}{
+			"value": nil,
+		}),
+	)
+	assert.NoError(t, err)
+	assert.True(t, ok)
+
+	ok, err = expr.Execute(
+		MapKV(map[string]interface{}{}),
+	)
+	assert.NoError(t, err)
+	assert.True(t, ok)
+
+	expr, _ = New(`value != nil && value > 1000`)
+	ok, err = expr.Execute(
+		MapKV(map[string]interface{}{}),
+	)
+	assert.NoError(t, err)
+	assert.False(t, ok)
+
+	expr, _ = New(`value > 1000 || value == nil`)
+	ok, err = expr.Execute(
+		MapKV(map[string]interface{}{}),
+	)
+	// value > 1000 在前面, 先执行会出错
+	assert.Error(t, err)
+	t.Log(err.Error())
+
+	expr, _ = New(`value == nil`)
+	ok, err = expr.Execute(
+		MapKV(map[string]interface{}{}),
+	)
+	assert.NoError(t, err)
+	assert.True(t, ok)
+
+	expr, _ = New(`value != nil`)
+	ok, err = expr.Execute(
+		MapKV(map[string]interface{}{}),
+	)
+	assert.NoError(t, err)
+	assert.False(t, ok)
+
+	expr, _ = New(`value == ""`)
+	ok, err = expr.Execute(
+		MapKV(map[string]interface{}{}),
+	)
+	assert.NoError(t, err)
+	assert.False(t, ok)
+}
+
+func TestAssert_NoValue(t *testing.T) {
+	expr, _ := New(`nil == nil`)
+	ok, err := expr.Execute(
+		MapKV(map[string]interface{}{}),
+	)
+	assert.NoError(t, err)
+	assert.True(t, ok)
+
+	expr, _ = New(`123 == 123`)
+	ok, err = expr.Execute(
+		MapKV(map[string]interface{}{}),
+	)
+	assert.NoError(t, err)
+	assert.True(t, ok)
+
+	expr, _ = New(`"123" == "123"`)
+	ok, err = expr.Execute(
+		MapKV(map[string]interface{}{}),
+	)
+	assert.NoError(t, err)
+	assert.True(t, ok)
 }

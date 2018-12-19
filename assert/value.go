@@ -5,6 +5,9 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/cloudfly/golang/tools"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -12,15 +15,18 @@ const (
 	Boolean
 	Number
 	String
+	Error
 )
 
 type Value struct {
+	name  string
 	val   interface{}
 	vType uint8
 }
 
-func NewValue(v interface{}) Value {
+func NewValue(name string, v interface{}) Value {
 	res := Value{
+		name:  name,
 		val:   v,
 		vType: Nil,
 	}
@@ -95,9 +101,23 @@ func (v Value) Float() (float64, error) {
 	case Number:
 		return v.val.(float64), nil
 	case String:
-		return strconv.ParseFloat(fmt.Sprintf("%v", v.val), 64)
+		f, err := strconv.ParseFloat(fmt.Sprintf("%v", v.val), 64)
+		if err != nil {
+			return 0, err
+		}
+		return f, nil
+	case Nil:
+		if v.name == "" {
+			return 0, errors.New("can not convert nil value to number")
+		}
+		return 0, fmt.Errorf("variable '%s' is nil, can not convert to number", v.name)
+	case Error:
+		return 0, fmt.Errorf("%v", v.val)
 	}
-	return 0, fmt.Errorf("value '%v' not a number", v.val)
+	if v.name == "" {
+		return 0, errors.New("unknown value type")
+	}
+	return 0, fmt.Errorf("unknow value type of variable '%s'", v.name)
 }
 
 func (v Value) String() string {
@@ -110,9 +130,18 @@ func (v Value) String() string {
 func (v Value) Boolean() bool {
 	if v.vType == Boolean {
 		return v.val.(bool)
+	} else if v.vType == Error || v.vType == Nil {
+		return false
 	}
 	s := strings.ToLower(fmt.Sprintf("%v", v.val))
 	return s != "" && s != "false"
+}
+
+func (v Value) Error() error {
+	if v.vType == Error {
+		return fmt.Errorf("%v", v.val)
+	}
+	return nil
 }
 
 func (v Value) Not() Value {
@@ -123,17 +152,23 @@ func (v Value) Not() Value {
 }
 
 func (v Value) And(v2 Value) Value {
-	return Value{
-		val:   v.Boolean() && v2.Boolean(),
-		vType: Boolean,
+	if v.vType == Error {
+		return v
 	}
+	if !v.Boolean() {
+		return v
+	}
+	return v2
 }
 
 func (v Value) Or(v2 Value) Value {
-	return Value{
-		val:   v.Boolean() || v2.Boolean(),
-		vType: Boolean,
+	if v.vType == Error {
+		return v
 	}
+	if v.Boolean() {
+		return v
+	}
+	return v2
 }
 
 func (v Value) E(v2 Value) Value {
@@ -147,11 +182,10 @@ func (v Value) RE(v2 Value) Value {
 	exp, err := regexp.Compile(v2.String())
 	if err != nil {
 		return Value{
-			val:   false,
-			vType: Boolean,
+			val:   err.Error(),
+			vType: Error,
 		}
 	}
-
 	return Value{
 		val:   exp.MatchString(v.String()),
 		vType: Boolean,
@@ -162,8 +196,8 @@ func (v Value) NRE(v2 Value) Value {
 	exp, err := regexp.Compile(v2.String())
 	if err != nil {
 		return Value{
-			val:   false,
-			vType: Boolean,
+			val:   err.Error(),
+			vType: Error,
 		}
 	}
 
@@ -174,20 +208,23 @@ func (v Value) NRE(v2 Value) Value {
 }
 
 func (v Value) NE(v2 Value) Value {
-	return Value{
-		val:   v.String() != v2.String(),
-		vType: Boolean,
-	}
+	return v.E(v2).Not()
 }
 
 func (v Value) GT(v2 Value) Value {
 	left, err := v.Float()
 	if err != nil {
-		return Value{val: false, vType: Boolean}
+		return Value{
+			val:   err.Error(),
+			vType: Error,
+		}
 	}
 	right, err := v2.Float()
 	if err != nil {
-		return Value{val: false, vType: Boolean}
+		return Value{
+			val:   err.Error(),
+			vType: Error,
+		}
 	}
 	return Value{
 		val:   left > right,
@@ -198,11 +235,17 @@ func (v Value) GT(v2 Value) Value {
 func (v Value) GTE(v2 Value) Value {
 	left, err := v.Float()
 	if err != nil {
-		return Value{val: false, vType: Boolean}
+		return Value{
+			val:   err.Error(),
+			vType: Error,
+		}
 	}
 	right, err := v2.Float()
 	if err != nil {
-		return Value{val: false, vType: Boolean}
+		return Value{
+			val:   err.Error(),
+			vType: Error,
+		}
 	}
 	return Value{
 		val:   left >= right,
@@ -213,11 +256,17 @@ func (v Value) GTE(v2 Value) Value {
 func (v Value) LT(v2 Value) Value {
 	left, err := v.Float()
 	if err != nil {
-		return Value{val: false, vType: Boolean}
+		return Value{
+			val:   err.Error(),
+			vType: Error,
+		}
 	}
 	right, err := v2.Float()
 	if err != nil {
-		return Value{val: false, vType: Boolean}
+		return Value{
+			val:   err.Error(),
+			vType: Error,
+		}
 	}
 	return Value{
 		val:   left < right,
@@ -228,11 +277,17 @@ func (v Value) LT(v2 Value) Value {
 func (v Value) LTE(v2 Value) Value {
 	left, err := v.Float()
 	if err != nil {
-		return Value{val: false, vType: Boolean}
+		return Value{
+			val:   err.Error(),
+			vType: Error,
+		}
 	}
 	right, err := v2.Float()
 	if err != nil {
-		return Value{val: false, vType: Boolean}
+		return Value{
+			val:   err.Error(),
+			vType: Error,
+		}
 	}
 	return Value{
 		val:   left <= right,
@@ -240,14 +295,27 @@ func (v Value) LTE(v2 Value) Value {
 	}
 }
 
+func (v Value) MATCH(v2 Value) Value {
+	return Value{
+		val:   tools.SimpleMatch(v2.String(), v.String()),
+		vType: Boolean,
+	}
+}
+
 func (v Value) Add(v2 Value) Value {
 	f, err := v.Float()
 	if err != nil {
-		return Value{val: v.String() + v2.String(), vType: String}
+		return Value{
+			val:   v.String() + v2.String(),
+			vType: String,
+		}
 	}
 	f2, err := v2.Float()
 	if err != nil {
-		return Value{val: v.String() + v2.String(), vType: String}
+		return Value{
+			val:   v.String() + v2.String(),
+			vType: String,
+		}
 	}
 	return Value{
 		val:   f + f2,
@@ -255,62 +323,86 @@ func (v Value) Add(v2 Value) Value {
 	}
 }
 
-func (v Value) Sub(v2 Value) (Value, error) {
+func (v Value) Sub(v2 Value) Value {
 	f, err := v.Float()
 	if err != nil {
-		return Value{}, err
+		return Value{
+			val:   err.Error(),
+			vType: Error,
+		}
 	}
 	f2, err := v2.Float()
 	if err != nil {
-		return Value{}, err
+		return Value{
+			val:   err.Error(),
+			vType: Error,
+		}
 	}
 	return Value{
 		val:   f - f2,
 		vType: Number,
-	}, nil
+	}
 }
 
-func (v Value) Multi(v2 Value) (Value, error) {
+func (v Value) Multi(v2 Value) Value {
 	f, err := v.Float()
 	if err != nil {
-		return Value{}, err
+		return Value{
+			val:   err.Error(),
+			vType: Error,
+		}
 	}
 	f2, err := v2.Float()
 	if err != nil {
-		return Value{}, err
+		return Value{
+			val:   err.Error(),
+			vType: Error,
+		}
 	}
 	return Value{
 		val:   f * f2,
 		vType: Number,
-	}, nil
+	}
 }
 
-func (v Value) Div(v2 Value) (Value, error) {
+func (v Value) Div(v2 Value) Value {
 	f, err := v.Float()
 	if err != nil {
-		return Value{}, err
+		return Value{
+			val:   err.Error(),
+			vType: Error,
+		}
 	}
 	f2, err := v2.Float()
 	if err != nil {
-		return Value{}, err
+		return Value{
+			val:   err.Error(),
+			vType: Error,
+		}
 	}
 	return Value{
 		val:   f / f2,
 		vType: Number,
-	}, nil
+	}
 }
 
-func (v Value) Mod(v2 Value) (Value, error) {
+func (v Value) Mod(v2 Value) Value {
 	f, err := v.Float()
 	if err != nil {
-		return Value{}, err
+		return Value{
+			val:   err.Error(),
+			vType: Error,
+		}
 	}
 	f2, err := v2.Float()
 	if err != nil {
-		return Value{}, err
+		return Value{
+			val:   err.Error(),
+			vType: Error,
+		}
 	}
 	return Value{
 		val:   float64(int(f) % int(f2)),
 		vType: Number,
-	}, nil
+	}
 }

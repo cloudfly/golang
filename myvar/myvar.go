@@ -3,13 +3,14 @@ package myvar
 import (
 	"fmt"
 	"math"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	client "github.com/influxdata/influxdb/client/v2"
 	"github.com/influxdata/influxdb/models"
+	client "github.com/influxdata/influxdb/client/v2"
 )
 
 var (
@@ -77,16 +78,27 @@ func publish(measurement string, tags map[string]string, name string, value inte
 	}
 }
 
-func getMap(measurement string, tags map[string]string, name string) (*Map, bool) {
-
-	return nil, false
-}
-
 type Var struct {
 	measurement string
 	tags        models.Tags
 	name        string
 	value       interface{}
+}
+
+func (v Var) GetMeasurement() string {
+	return v.measurement
+}
+
+func (v Var) GetTags() models.Tags {
+	return v.tags
+}
+
+func (v Var) GetValue() interface{} {
+	return v.value
+}
+
+func (v Var) GetName() string {
+	return v.name
 }
 
 // Variable type
@@ -214,6 +226,9 @@ func NewString(measurement string, tags map[string]string, name string) *String 
 }
 
 func (s *String) Set(v string) {
+	if len(v) > 256 { // 不允许超过 256 长度
+		v = v[:256]
+	}
 	s.value.Store(v)
 }
 
@@ -231,6 +246,18 @@ func (s *String) Free() {
 type Map struct {
 	key  string
 	data sync.Map
+}
+
+func (m Map) GetData() sync.Map {
+	return m.data
+}
+
+func (m Map) DelEntry(k interface{}) {
+	m.data.Delete(k)
+}
+
+func (m Map) RangeFunc(f func(key, value interface{}) bool) {
+	m.data.Range(f)
 }
 
 func NewMap(measurement string, tags map[string]string) *Map {
@@ -279,9 +306,13 @@ func Publish(name string, tags map[string]string, fields map[string]interface{})
 
 // Flush write all the points in cache into influxdb
 func Flush(tt ...time.Time) error {
-	t := time.Now()
+	var (
+		t time.Time
+	)
 	if len(tt) > 0 {
 		t = tt[0]
+	} else {
+		t = time.Now()
 	}
 
 	batch, err := client.NewBatchPoints(client.BatchPointsConfig{
@@ -318,7 +349,9 @@ LOOP:
 		if len(fields) == 0 {
 			continue
 		}
-		p, err := models.NewPoint(v.measurement, append(v.tags.Clone(), gtags...), models.Fields(fields), t)
+		tagList := append(v.GetTags().Clone(), gtags...)
+		sort.Sort(tagList)
+		p, err := models.NewPoint(v.measurement, tagList, models.Fields(fields), t)
 		if err != nil {
 			log.Errorf("failed create new influxdb point, %s", err.Error())
 			continue
@@ -359,10 +392,16 @@ func flusher() {
 	}
 }
 
+// 生成唯一 key, 必须要对 tags 排序, 否则相同的 metric 会出现不同的 key
 func key(measurement string, tags map[string]string, name string) string {
 	s := ""
-	for k, v := range tags {
-		s += fmt.Sprintf("%s=%s,", k, v)
+	keys := make([]string, 0, len(tags))
+	for k := range tags {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		s += fmt.Sprintf("%s=%s,", k, tags[k])
 	}
 	return fmt.Sprintf("%s.%s.%s", measurement, s, name)
 }
