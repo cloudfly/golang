@@ -5,9 +5,14 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/cloudfly/golang/tools"
 	"github.com/pkg/errors"
+)
+
+var (
+	recache sync.Map
 )
 
 const (
@@ -179,7 +184,7 @@ func (v Value) E(v2 Value) Value {
 }
 
 func (v Value) RE(v2 Value) Value {
-	exp, err := regexp.Compile(v2.String())
+	exp, err := compileRegexp(v2.String())
 	if err != nil {
 		return Value{
 			val:   err.Error(),
@@ -405,4 +410,17 @@ func (v Value) Mod(v2 Value) Value {
 		val:   float64(int(f) % int(f2)),
 		vType: Number,
 	}
+}
+
+func compileRegexp(s string) (*regexp.Regexp, error) {
+	v, ok := recache.Load(s)
+	if ok {
+		return v.(*regexp.Regexp), nil
+	}
+	exp, err := regexp.Compile(s)
+	if err != nil {
+		return nil, err
+	}
+	recache.Store(s, exp)
+	return exp, nil
 }
