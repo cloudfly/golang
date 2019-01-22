@@ -9,8 +9,8 @@ import (
 )
 
 func TestDConf(t *testing.T) {
-	conf1, err := NewDConf(context.Background(), []string{"http://localhost:2379"}, "/dconf_test")
-	conf2, err := NewDConf(context.Background(), []string{"http://localhost:2379"}, "/dconf_test")
+	conf1, err := New(context.Background(), []string{"http://localhost:2379"}, "/dconf_test")
+	conf2, err := New(context.Background(), []string{"http://localhost:2379"}, "/dconf_test")
 	assert.NoError(t, err)
 
 	_, err = conf1.Get("hello")

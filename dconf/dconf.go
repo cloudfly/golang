@@ -54,8 +54,8 @@ type DConf struct {
 	etcd.ClusterError
 }
 
-// NewDConf inits a DConf instance and reads data from etcd
-func NewDConf(ctx context.Context, addrs []string, prefix string) (*DConf, error) {
+// New inits a DConf instance and reads data from etcd
+func New(ctx context.Context, addrs []string, prefix string) (*DConf, error) {
 	if prefix == "" {
 		prefix = "/dconf"
 	}
