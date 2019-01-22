@@ -28,6 +28,7 @@ func TestDConf(t *testing.T) {
 	assert.Equal(t, "world", value)
 
 	assert.NoError(t, conf1.Del("hello"))
+
 	time.Sleep(time.Second / 2) // waiting for sync
 
 	_, err = conf1.Get("hello")
@@ -38,6 +39,7 @@ func TestDConf(t *testing.T) {
 
 	assert.NoError(t, conf1.Set("database/table1", "readonly"))
 	assert.NoError(t, conf1.Set("database/table2", "writeonly"))
+
 	time.Sleep(time.Second / 2) // waiting for sync
 
 	keys := conf1.Keys()

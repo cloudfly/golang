@@ -120,12 +120,6 @@ func (conf *DConf) keyname(path string) string {
 	return path
 }
 
-func (conf *DConf) setIndex(index uint64) {
-	if index > conf.latestIndex {
-		conf.latestIndex = index
-	}
-}
-
 func (conf *DConf) watch() error {
 
 	for {
@@ -217,6 +211,8 @@ func (conf *DConf) readNode(node *etcd.Node) {
 			return
 		}
 		conf.data.Store(realKey, node.Value)
-		conf.setIndex(node.ModifiedIndex)
+		if node.ModifiedIndex > conf.latestIndex {
+			conf.latestIndex = node.ModifiedIndex
+		}
 	}
 }
