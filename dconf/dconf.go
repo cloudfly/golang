@@ -40,7 +40,6 @@ func IsKeyNotFound(err error) bool {
 
 // DConf synchronizes etcd with in-memory data structures
 type DConf struct {
-	sync.RWMutex
 	ctx context.Context
 	// data stores data synchronized with etcd
 	// key format: `/prefix/key` is a leaf node of etcd
@@ -51,7 +50,6 @@ type DConf struct {
 	watcher     etcd.Watcher
 	kv          etcd.KeysAPI
 	latestIndex uint64
-	etcd.ClusterError
 }
 
 // New inits a DConf instance and reads data from etcd
@@ -78,7 +76,7 @@ func New(ctx context.Context, addrs []string, prefix string) (*DConf, error) {
 	conf.watcher = conf.kv.Watcher(prefix, &etcd.WatcherOptions{Recursive: true})
 
 	// initial sync
-	if err := conf.init(); err != nil {
+	if err := conf.sync(); err != nil {
 		return nil, err
 	}
 
@@ -87,7 +85,7 @@ func New(ctx context.Context, addrs []string, prefix string) (*DConf, error) {
 	return conf, nil
 }
 
-func (conf *DConf) init() error {
+func (conf *DConf) sync() error {
 	resp, err := conf.kv.Get(context.Background(), conf.prefix, &etcd.GetOptions{Recursive: true})
 	if err != nil {
 		// if key not found
@@ -104,21 +102,7 @@ func (conf *DConf) init() error {
 	if !resp.Node.Dir {
 		return fmt.Errorf("etcd node %s is not a dir", conf.prefix)
 	}
-
-	for _, node := range resp.Node.Nodes {
-		if node.Dir {
-			continue
-		}
-
-		realKey := conf.keyname(node.Key)
-		if realKey == "" {
-			continue
-		}
-		conf.Lock()
-		conf.data.Store(realKey, node.Value)
-		conf.Unlock()
-		conf.setIndex(node.ModifiedIndex)
-	}
+	conf.readNode(resp.Node)
 	return nil
 }
 
@@ -136,16 +120,7 @@ func (conf *DConf) keyname(path string) string {
 	return path
 }
 
-func (conf *DConf) getIndex() uint64 {
-	conf.RLock()
-	defer conf.RUnlock()
-	return conf.latestIndex
-}
-
 func (conf *DConf) setIndex(index uint64) {
-	conf.Lock()
-	defer conf.Unlock()
-
 	if index > conf.latestIndex {
 		conf.latestIndex = index
 	}
@@ -163,10 +138,11 @@ func (conf *DConf) watch() error {
 		}
 
 		// update index
-		if resp.Node.ModifiedIndex < conf.getIndex() {
+		if resp.Node.ModifiedIndex < conf.latestIndex {
 			continue
 		}
-		conf.setIndex(resp.Node.ModifiedIndex)
+
+		conf.latestIndex = resp.Node.ModifiedIndex
 
 		realKey := conf.keyname(resp.Node.Key)
 
@@ -228,4 +204,19 @@ func (conf *DConf) Data() map[string]string {
 		return true
 	})
 	return data
+}
+
+func (conf *DConf) readNode(node *etcd.Node) {
+	if node.Dir {
+		for _, child := range node.Nodes {
+			conf.readNode(child)
+		}
+	} else {
+		realKey := conf.keyname(node.Key)
+		if realKey == "" {
+			return
+		}
+		conf.data.Store(realKey, node.Value)
+		conf.setIndex(node.ModifiedIndex)
+	}
 }
