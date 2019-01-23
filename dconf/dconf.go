@@ -191,10 +191,12 @@ func (conf *DConf) Del(key string) error {
 }
 
 // Data loads all keys from data
-func (conf *DConf) Data() map[string]string {
+func (conf *DConf) Data(prefix string) map[string]string {
 	data := make(map[string]string)
 	conf.data.Range(func(key, value interface{}) bool {
-		data[key.(string)] = value.(string)
+		if prefix == "" || strings.HasPrefix(key.(string), prefix) {
+			data[key.(string)] = value.(string)
+		}
 		return true
 	})
 	return data

@@ -45,7 +45,7 @@ func TestDConf(t *testing.T) {
 	keys := conf1.Keys()
 	assert.Equal(t, 2, len(keys))
 
-	data := conf1.Data()
+	data := conf1.Data("")
 	assert.Equal(t, 2, len(data))
 	assert.Equal(t, "readonly", data["database/table1"])
 	assert.Equal(t, "writeonly", data["database/table2"])
@@ -53,7 +53,16 @@ func TestDConf(t *testing.T) {
 	conf3, err := New(context.Background(), []string{"http://localhost:2379"}, "/dconf_test")
 	assert.NoError(t, err)
 
-	data = conf3.Data()
+	data = conf3.Data("")
+	assert.Equal(t, 2, len(data))
+	assert.Equal(t, "readonly", data["database/table1"])
+	assert.Equal(t, "writeonly", data["database/table2"])
+
+	assert.NoError(t, conf3.Set("hello", "world"))
+
+	time.Sleep(time.Second / 2)
+
+	data = conf1.Data("database")
 	assert.Equal(t, 2, len(data))
 	assert.Equal(t, "readonly", data["database/table1"])
 	assert.Equal(t, "writeonly", data["database/table2"])
