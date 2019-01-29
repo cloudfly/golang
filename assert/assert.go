@@ -285,3 +285,47 @@ func (kv MapKV) Get(key string) interface{} {
 	v, _ := kv[key]
 	return v
 }
+
+// Execute directly run the code with the reader
+func Execute(code string, reader kvReader) (bool, error) {
+	exp, err := New(code)
+	if err != nil {
+		return false, err
+	}
+	return exp.Execute(reader)
+}
+
+// ExecuteMap is a convenient function to execute code with data
+func ExecuteMap(code string, data map[string]interface{}) (bool, error) {
+	exp, err := New(code)
+	if err != nil {
+		return false, err
+	}
+	return exp.Execute(MapKV(data))
+}
+
+// MustExecute is same with Execute, but panic if has error
+func MustExecute(code string, reader kvReader) bool {
+	exp, err := New(code)
+	if err != nil {
+		panic(err)
+	}
+	b, err := exp.Execute(reader)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
+// MustExecuteMap is same with ExecuteMap, but panic if has error
+func MustExecuteMap(code string, data map[string]interface{}) bool {
+	exp, err := New(code)
+	if err != nil {
+		panic(err)
+	}
+	b, err := exp.Execute(MapKV(data))
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
