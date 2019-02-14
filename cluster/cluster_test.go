@@ -66,17 +66,11 @@ func TestCluster_NodesChan(t *testing.T) {
 	assert.NoError(t, node2.RemoveNode("node1"))
 	assert.NoError(t, node2.UpdateNode(Node{"node2", 1}))
 
+	// 因为 NodesChan 是延迟通知的, 所以上面的 3 次变更因为发生的太快，最终只有一次通知
 	nodes := <-ch
-	assert.Equal(t, 3, len(nodes))
-	assert.Equal(t, "node0", nodes[0].Name)
-	assert.Equal(t, "node1", nodes[1].Name)
-	assert.Equal(t, "node2", nodes[2].Name)
-
-	nodes = <-ch
 	assert.Equal(t, 2, len(nodes))
 	assert.Equal(t, "node0", nodes[0].Name)
 	assert.Equal(t, "node2", nodes[1].Name)
-
-	nodes = <-ch
+	assert.Equal(t, 3, nodes[0].Weight)
 	assert.Equal(t, 1, nodes[1].Weight)
 }

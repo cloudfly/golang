@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 	"go.etcd.io/etcd/clientv3"
@@ -95,32 +96,41 @@ func (c *Cluster) activate() {
 	client := c.client
 	watcher := clientv3.NewWatcher(client)
 	ch := watcher.Watch(c.ctx, c.prefix, clientv3.WithPrefix(), clientv3.WithPrevKV())
-	broadcast := false
-	for resp := range ch {
-		for _, event := range resp.Events {
-			var node Node
-			switch event.Type {
-			case mvccpb.PUT:
-				if err := json.Unmarshal(event.Kv.Value, &node); err != nil {
-					break // break the switch
+	ticker := time.NewTicker(time.Second * 3)
+	defer ticker.Stop()
+
+	willBroadcast := false
+	for {
+		select {
+		case resp := <-ch:
+			for _, event := range resp.Events {
+				var node Node
+				switch event.Type {
+				case mvccpb.PUT:
+					if err := json.Unmarshal(event.Kv.Value, &node); err != nil {
+						break // break the switch
+					}
+					if b := c.updateNode(node); b {
+						willBroadcast = true
+					}
+				case mvccpb.DELETE:
+					if err := json.Unmarshal(event.PrevKv.Value, &node); err != nil {
+						break // break the switch
+					}
+					c.removeNode(node)
+					willBroadcast = true
 				}
-				if b := c.updateNode(node); b {
-					broadcast = true
-				}
-			case mvccpb.DELETE:
-				if err := json.Unmarshal(event.PrevKv.Value, &node); err != nil {
-					break // break the switch
-				}
-				c.removeNode(node)
-				broadcast = true
 			}
-		}
-		if broadcast {
-			nodes := c.Nodes()
-			for _, ch := range c.chans {
-				select {
-				case ch <- nodes:
+		case <-ticker.C:
+			if willBroadcast {
+				nodes := c.Nodes()
+				for _, ch := range c.chans {
+					ch := ch
+					select {
+					case ch <- nodes:
+					}
 				}
+				willBroadcast = false
 			}
 		}
 	}
@@ -181,6 +191,18 @@ func (c *Cluster) NodesChan() <-chan Nodes {
 	ch := make(chan Nodes, 8)
 	c.chans = append(c.chans, ch)
 	return ch
+}
+
+// HasNode 判断一个 node 是否在集群中; 通常用于判断自身是否在集群中
+func (c *Cluster) HasNode(name string) bool {
+	c.rwmu.RLock()
+	defer c.rwmu.RUnlock()
+	for _, node := range c.nodes {
+		if node.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 // AddNode 向集群中增加一个新节点
