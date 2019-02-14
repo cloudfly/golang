@@ -8,12 +8,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestDConf(t *testing.T) {
-	conf1, err := New(context.Background(), []string{"http://localhost:2379"}, "/dconf_test")
-	conf2, err := New(context.Background(), []string{"http://localhost:2379"}, "/dconf_test")
+func TestDConf3(t *testing.T) {
+	conf1, err := NewV3(context.Background(), []string{"localhost:2379"}, "/dconf_test")
 	assert.NoError(t, err)
-	v, err := conf1.Get("hello")
-	assert.Empty(t, v)
+	conf2, err := NewV3(context.Background(), []string{"localhost:2379"}, "/dconf_test")
+	assert.NoError(t, err)
+
+	_, err = conf1.Get("hello")
 	assert.True(t, IsKeyNotFound(err))
 	assert.NoError(t, conf1.Set("hello", "world"))
 
@@ -50,7 +51,7 @@ func TestDConf(t *testing.T) {
 	assert.Equal(t, "readonly", data["database/table1"])
 	assert.Equal(t, "writeonly", data["database/table2"])
 
-	conf3, err := New(context.Background(), []string{"http://localhost:2379"}, "/dconf_test")
+	conf3, err := NewV3(context.Background(), []string{"http://localhost:2379"}, "/dconf_test")
 	assert.NoError(t, err)
 
 	data = conf3.Data("")
