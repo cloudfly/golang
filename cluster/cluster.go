@@ -96,8 +96,8 @@ func (c *Cluster) activate() {
 	client := c.client
 	watcher := clientv3.NewWatcher(client)
 	ch := watcher.Watch(c.ctx, c.prefix, clientv3.WithPrefix(), clientv3.WithPrevKV())
-	ticker := time.NewTicker(time.Second * 3)
-	defer ticker.Stop()
+	timer := time.NewTimer(time.Second * 3)
+	defer timer.Stop()
 
 	willBroadcast := false
 	for {
@@ -112,6 +112,7 @@ func (c *Cluster) activate() {
 					}
 					if b := c.updateNode(node); b {
 						willBroadcast = true
+						timer.Reset(time.Second * 3)
 					}
 				case mvccpb.DELETE:
 					if err := json.Unmarshal(event.PrevKv.Value, &node); err != nil {
@@ -119,9 +120,10 @@ func (c *Cluster) activate() {
 					}
 					c.removeNode(node)
 					willBroadcast = true
+					timer.Reset(time.Second * 3)
 				}
 			}
-		case <-ticker.C:
+		case <-timer.C:
 			if willBroadcast {
 				nodes := c.Nodes()
 				for _, ch := range c.chans {
