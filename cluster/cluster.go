@@ -191,6 +191,9 @@ func (c *Cluster) Nodes() Nodes {
 // NodesChan 返回一个 Nodes 类型 channel，用来实时获取 node 的变化情况
 func (c *Cluster) NodesChan() <-chan Nodes {
 	ch := make(chan Nodes, 8)
+	go func() {
+		ch <- c.Nodes()
+	}()
 	c.chans = append(c.chans, ch)
 	return ch
 }
