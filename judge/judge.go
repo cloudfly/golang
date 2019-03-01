@@ -6,9 +6,9 @@ import (
 	"sort"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	etcd "github.com/coreos/etcd/client"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 )
 
 // keys' ttl

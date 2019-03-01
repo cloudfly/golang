@@ -8,9 +8,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/influxdata/influxdb/models"
 	client "github.com/influxdata/influxdb/client/v2"
+	"github.com/influxdata/influxdb/models"
+	log "github.com/sirupsen/logrus"
 )
 
 var (

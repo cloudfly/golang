@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	influxdb "github.com/influxdata/influxdb/client/v2"
 	influxmodels "github.com/influxdata/influxdb/models"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 )
 
 var (

@@ -5,10 +5,11 @@ import (
 	"sync"
 	"time"
 
+	"sort"
+
 	client "github.com/influxdata/influxdb/client/v2"
 	"github.com/influxdata/influxdb/models"
-	log "github.com/Sirupsen/logrus"
-	"sort"
+	log "github.com/sirupsen/logrus"
 )
 
 type InstanceMyVar struct {
@@ -43,12 +44,12 @@ func NewMyVar(addr, db string, interval time.Duration) (*InstanceMyVar, error) {
 	cli.Query(client.NewQuery(fmt.Sprintf(`create database "%s"`, db), "", ""))
 
 	mv := &InstanceMyVar{
-		c: cli,
-		database: db,
+		c:             cli,
+		database:      db,
 		flushInterval: interval,
-		cancel: make(chan struct{}),
-		cache: make(map[string]*Var),
-		tempCache: make([]*client.Point, 0, 1000),
+		cancel:        make(chan struct{}),
+		cache:         make(map[string]*Var),
+		tempCache:     make([]*client.Point, 0, 1000),
 	}
 	go mv.flusher()
 
