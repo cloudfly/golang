@@ -34,7 +34,8 @@ type Cluster struct {
 // New 创建一个新集群，并将自己加入到节点中
 func New(ctx context.Context, endpoints []string, prefix string, nodes Nodes) (*Cluster, error) {
 	client, err := clientv3.New(clientv3.Config{
-		Endpoints: endpoints,
+		Endpoints:   endpoints,
+		DialTimeout: time.Second * 3,
 	})
 	if err != nil {
 		return nil, err
