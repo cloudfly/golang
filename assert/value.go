@@ -150,6 +150,9 @@ func (v Value) Error() error {
 }
 
 func (v Value) Not() Value {
+	if v.vType == Error {
+		return v
+	}
 	return Value{
 		val:   !v.Boolean(),
 		vType: Boolean,

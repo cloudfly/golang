@@ -373,6 +373,13 @@ func TestAssert_NilValue(t *testing.T) {
 	)
 	assert.NoError(t, err)
 	assert.False(t, ok)
+
+	expr, _ = New(`!(value > 0)`)
+	ok, err = expr.Execute(
+		MapKV(map[string]interface{}{}),
+	)
+	assert.Error(t, err)
+	assert.False(t, ok)
 }
 
 func TestAssert_NoValue(t *testing.T) {
