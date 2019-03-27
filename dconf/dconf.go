@@ -38,8 +38,8 @@ func IsKeyNotFound(err error) bool {
 	return false
 }
 
-// DConf synchronizes etcd with in-memory data structures
-type DConf struct {
+// DConfv2 synchronizes etcd with in-memory data structures
+type DConfv2 struct {
 	ctx context.Context
 	// data stores data synchronized with etcd
 	// key format: `/prefix/key` is a leaf node of etcd
@@ -52,8 +52,8 @@ type DConf struct {
 	latestIndex uint64
 }
 
-// New inits a DConf instance and reads data from etcd
-func New(ctx context.Context, addrs []string, prefix string) (*DConf, error) {
+// New inits a DConfv2 instance and reads data from etcd
+func New(ctx context.Context, addrs []string, prefix string) (*DConfv2, error) {
 	if prefix == "" {
 		prefix = "/dconf"
 	}
@@ -63,7 +63,7 @@ func New(ctx context.Context, addrs []string, prefix string) (*DConf, error) {
 	if prefix[len(prefix)-1] != '/' {
 		prefix = prefix + "/"
 	}
-	conf := &DConf{
+	conf := &DConfv2{
 		ctx:    ctx,
 		prefix: prefix,
 	}
@@ -85,7 +85,7 @@ func New(ctx context.Context, addrs []string, prefix string) (*DConf, error) {
 	return conf, nil
 }
 
-func (conf *DConf) sync() error {
+func (conf *DConfv2) sync() error {
 	resp, err := conf.kv.Get(context.Background(), conf.prefix, &etcd.GetOptions{Recursive: true})
 	if err != nil {
 		// if key not found
@@ -106,11 +106,11 @@ func (conf *DConf) sync() error {
 	return nil
 }
 
-func (conf *DConf) fullpath(key string) string {
+func (conf *DConfv2) fullpath(key string) string {
 	return path.Join(conf.prefix, key)
 }
 
-func (conf *DConf) keyname(path string) string {
+func (conf *DConfv2) keyname(path string) string {
 	if path == "" || conf.prefix == "" {
 		return path
 	}
@@ -120,7 +120,7 @@ func (conf *DConf) keyname(path string) string {
 	return path
 }
 
-func (conf *DConf) watch() error {
+func (conf *DConfv2) watch() error {
 
 	for {
 		if conf.ctx.Err() != nil { // context canceled
@@ -151,7 +151,7 @@ func (conf *DConf) watch() error {
 }
 
 // Set stores an entry into etcd
-func (conf *DConf) Set(key string, value string, preExist ...bool) error {
+func (conf *DConfv2) Set(key string, value string, preExist ...bool) error {
 	setPreExistOption := etcd.PrevIgnore
 	if len(preExist) > 0 {
 		if preExist[0] {
@@ -165,7 +165,7 @@ func (conf *DConf) Set(key string, value string, preExist ...bool) error {
 }
 
 // Get gets an entry from memory
-func (conf *DConf) Get(key string) (string, error) {
+func (conf *DConfv2) Get(key string) (string, error) {
 	value, ok := conf.data.Load(key)
 	if !ok {
 		return "", Error{Code: ErrorKeyNotFound, Message: fmt.Sprintf("key %s not found", key)}
@@ -175,7 +175,7 @@ func (conf *DConf) Get(key string) (string, error) {
 }
 
 // Keys loads all keys from data
-func (conf *DConf) Keys() []string {
+func (conf *DConfv2) Keys() []string {
 	keys := make([]string, 0, 32)
 	conf.data.Range(func(key, value interface{}) bool {
 		keys = append(keys, key.(string))
@@ -185,13 +185,13 @@ func (conf *DConf) Keys() []string {
 }
 
 // Del deletes an entry in etcd
-func (conf *DConf) Del(key string) error {
+func (conf *DConfv2) Del(key string) error {
 	_, err := conf.kv.Delete(context.Background(), conf.fullpath(key), &etcd.DeleteOptions{Dir: false})
 	return err
 }
 
 // Data loads all keys from data
-func (conf *DConf) Data(prefix string) map[string]string {
+func (conf *DConfv2) Data(prefix string) map[string]string {
 	data := make(map[string]string)
 	conf.data.Range(func(key, value interface{}) bool {
 		if prefix == "" || strings.HasPrefix(key.(string), prefix) {
@@ -202,7 +202,7 @@ func (conf *DConf) Data(prefix string) map[string]string {
 	return data
 }
 
-func (conf *DConf) readNode(node *etcd.Node) {
+func (conf *DConfv2) readNode(node *etcd.Node) {
 	if node.Dir {
 		for _, child := range node.Nodes {
 			conf.readNode(child)
@@ -217,4 +217,13 @@ func (conf *DConf) readNode(node *etcd.Node) {
 			conf.latestIndex = node.ModifiedIndex
 		}
 	}
+}
+
+// DConf 接口
+type DConf interface {
+	Get(key string) (string, error)
+	Set(key, value string, preExist ...bool) error
+	Del(key string) error
+	Keys(prefix string) []string
+	Data(prefix string) map[string]string
 }
