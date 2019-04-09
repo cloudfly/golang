@@ -224,6 +224,6 @@ type DConf interface {
 	Get(key string) (string, error)
 	Set(key, value string, preExist ...bool) error
 	Del(key string) error
-	Keys(prefix string) []string
+	Keys() []string
 	Data(prefix string) map[string]string
 }
