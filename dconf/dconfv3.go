@@ -145,10 +145,13 @@ func (conf *DConf3) Get(key string) (string, error) {
 }
 
 // Keys loads all keys from data
-func (conf *DConf3) Keys() []string {
+func (conf *DConf3) Keys(prefix string) []string {
 	keys := make([]string, 0, 32)
 	conf.data.Range(func(key, value interface{}) bool {
-		keys = append(keys, key.(string))
+		s := key.(string)
+		if strings.HasPrefix(s, prefix) {
+			keys = append(keys, key.(string))
+		}
 		return true
 	})
 	return keys

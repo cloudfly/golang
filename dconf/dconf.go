@@ -175,10 +175,13 @@ func (conf *DConfv2) Get(key string) (string, error) {
 }
 
 // Keys loads all keys from data
-func (conf *DConfv2) Keys() []string {
+func (conf *DConfv2) Keys(prefix string) []string {
 	keys := make([]string, 0, 32)
 	conf.data.Range(func(key, value interface{}) bool {
-		keys = append(keys, key.(string))
+		s := key.(string)
+		if strings.HasPrefix(s, prefix) {
+			keys = append(keys, key.(string))
+		}
 		return true
 	})
 	return keys
@@ -224,6 +227,6 @@ type DConf interface {
 	Get(key string) (string, error)
 	Set(key, value string, preExist ...bool) error
 	Del(key string) error
-	Keys() []string
+	Keys(prefix string) []string
 	Data(prefix string) map[string]string
 }
