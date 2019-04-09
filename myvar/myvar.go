@@ -3,6 +3,7 @@ package myvar
 import (
 	"fmt"
 	"math"
+	"os"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -10,7 +11,6 @@ import (
 
 	client "github.com/influxdata/influxdb/client/v2"
 	"github.com/influxdata/influxdb/models"
-	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -319,7 +319,6 @@ func Flush(tt ...time.Time) error {
 		Database: database,
 	})
 	if err != nil {
-		log.Errorf("fail to create influxdb batch, %s", err.Error())
 		return err
 	}
 
@@ -353,7 +352,6 @@ LOOP:
 		sort.Sort(tagList)
 		p, err := models.NewPoint(v.measurement, tagList, models.Fields(fields), t)
 		if err != nil {
-			log.Errorf("failed create new influxdb point, %s", err.Error())
 			continue
 		}
 		batch.AddPoint(client.NewPointFrom(p))
@@ -381,11 +379,11 @@ func flusher() {
 				break
 			}
 			if err := Flush(t.Truncate(time.Second)); err != nil {
-				log.Errorf("failed to flush points into influxdb, %s", err.Error())
+				fmt.Fprintf(os.Stderr, "failed to flush points into influxdb, %s", err.Error())
 			}
 		case <-cancel:
 			if err := Flush(time.Now().Truncate(time.Second)); err != nil {
-				log.Errorf("failed to flush points into influxdb, %s", err.Error())
+				fmt.Fprintf(os.Stderr, "failed to flush points into influxdb, %s", err.Error())
 			}
 			return
 		}
