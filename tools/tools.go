@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"bytes"
 	"crypto/md5"
 	"crypto/rsa"
 	"crypto/sha1"
@@ -19,26 +18,30 @@ func Hash(data []byte) string {
 }
 
 func SimpleMatch(pattern, s string) bool {
-	if pattern == s { // empty pattern only match empty string
-		return true
-	}
-	patternBytes, name := []byte(pattern), []byte(s) // parse to []byte saving the memroy and reduce gc for string
-	items := bytes.Split(patternBytes, []byte{'*'})
-	for i, item := range items {
-		if i == len(items)-1 && len(item) == 0 { // pattern end with *
-			return true
-		}
-		j := bytes.Index(name, item)
-		if j == -1 {
+	i, j, star, match := 0, 0, -1, 0
+	for i < len(s) {
+		if j < len(pattern) && (s[i] == pattern[j] || pattern[j] == '?') {
+			i++
+			j++
+		} else if j < len(pattern) && pattern[j] == '*' {
+			match, star = i, j
+			j++
+		} else if star != -1 {
+			j = star + 1
+			match++
+			i = match
+		} else {
 			return false
 		}
-		if i == 0 && len(item) != 0 && j != 0 { // 保证 abc* 匹配以 abc 开头的, 否则会匹配到 aabcxx 这种
+	}
+	for ; j < len(pattern); j++ {
+		if pattern[j] != '*' {
 			return false
 		}
-		name = name[j+len(item):]
 	}
-	return len(name) == 0
+	return true
 }
+
 
 func MapMatch(pattern map[string]string, data map[string]string) int {
 	if len(pattern) > len(data) { // pattern 必定存在某个 key, 在 data 中是找不到的
