@@ -404,3 +404,9 @@ func TestAssert_NoValue(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, ok)
 }
+
+func TestEqual(t *testing.T) {
+	assert.True(t, Equal("", ""))
+	assert.True(t, Equal("a==2", "a == 2"))
+	assert.False(t, Equal("a=2", "a == 2"))
+}

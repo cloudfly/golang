@@ -329,3 +329,24 @@ func MustExecuteMap(code string, data map[string]interface{}) bool {
 	}
 	return b
 }
+
+// Equal check if the two assert expression is equal, (mainly ignore the white space charactors)
+func Equal(code1, code2 string) bool {
+	items1, _, err := parse(strings.TrimSpace(code1))
+	if err != nil {
+		return false
+	}
+	items2, _, err := parse(strings.TrimSpace(code2))
+	if err != nil {
+		return false
+	}
+	if len(items1) != len(items2) {
+		return false
+	}
+	for i := 0; i < len(items1); i++ {
+		if items1[i] != items2[i] {
+			return false
+		}
+	}
+	return true
+}
