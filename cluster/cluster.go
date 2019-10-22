@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
+	clientv3 "github.com/coreos/etcd/clientv3"
+	mvccpb "github.com/coreos/etcd/mvcc/mvccpb"
 	"github.com/pkg/errors"
-	"go.etcd.io/etcd/clientv3"
-	"go.etcd.io/etcd/mvcc/mvccpb"
 )
 
 // global variables
