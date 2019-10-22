@@ -13,9 +13,9 @@ import (
 	"strings"
 	"sync"
 
-	"go.etcd.io/etcd/clientv3"
-	"go.etcd.io/etcd/clientv3/clientv3util"
-	"go.etcd.io/etcd/mvcc/mvccpb"
+	clientv3 "github.com/coreos/etcd/clientv3"
+	clientv3util "github.com/coreos/etcd/clientv3/clientv3util"
+	mvccpb "github.com/coreos/etcd/mvcc/mvccpb"
 )
 
 // DConf3 synchronizes etcd with in-memory data structures
