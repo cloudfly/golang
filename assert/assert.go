@@ -18,31 +18,94 @@ const (
 	CUT = 100000
 )
 
-type kvReader interface {
+type KV interface {
 	Get(key string) interface{}
+}
+
+type symbol struct {
+	v        Value
+	t        int
+	variable bool   // 是否是一个变量
+	raw      string // 原生的字符串内容, 即表达式中的符号
+}
+
+func newSymbol(s string) symbol {
+	item := symbol{
+		raw: s,
+		v:   nilValue,
+		t:   VALUE,
+	}
+	switch {
+	case len(s) >= 2 && (s[0] == '"' || s[0] == '\'' || s[0] == '`'):
+		item.v = NewValue("", s[1:len(s)-1])
+	case s == "(":
+		item.t = LB
+	case s == ")":
+		item.t = RB
+	case s == "!":
+		item.t = NOT
+	case s == "&&":
+		item.t = AND
+	case s == "||":
+		item.t = OR
+	case s == "=":
+		item.t = MATCH
+	case s == "==":
+		item.t = E
+	case s == "=~":
+		item.t = RE
+	case s == "!~":
+		item.t = NRE
+	case s == "!=":
+		item.t = NE
+	case s == ">":
+		item.t = GT
+	case s == "<":
+		item.t = LT
+	case s == ">=":
+		item.t = GTE
+	case s == "<=":
+		item.t = LTE
+	case len(s) >= 1 && unicode.IsNumber(rune(s[0])):
+		f, err := strconv.ParseFloat(s, 64)
+		if err == nil {
+			item.v = NewValue("", f)
+		} else {
+			item.t = EOF
+		}
+	case len(s) == 1 && !unicode.IsLetter(rune(s[0])): // +, -, *, /, %
+		item.t = int(s[0])
+	case s == "true":
+		item.v = trueValue
+	case s == "false":
+		item.v = falseValue
+	case s == "nil":
+		item.v = nilValue
+	default:
+		item.variable = true
+	}
+	return item
 }
 
 // Assert 代表一个表达式
 type Assert struct {
 	*sync.Mutex
-	data      []string
-	variables []string
-	pos       int
-	answer    Value
-	kv        kvReader
-	err       error
+	data   []symbol
+	pos    int
+	answer Value
+	kv     KV
+	err    error
 }
 
 // New 编译代码生成表达式
 func New(code string) (*Assert, error) {
-	items, variables, err := parse(strings.TrimSpace(code))
+	items, err := parse(strings.TrimSpace(code))
 	if err != nil {
 		return nil, err
 	}
 	return &Assert{
-		Mutex:     &sync.Mutex{},
-		data:      items,
-		variables: variables,
+		Mutex: &sync.Mutex{},
+		data:  items,
 	}, nil
 }
 
@@ -51,66 +114,24 @@ func (l *Assert) Lex(lval *yySymType) int {
 	if l.pos >= len(l.data) {
 		return EOF
 	}
-	s := l.data[l.pos]
+	sb := l.data[l.pos]
 	l.pos++
-	switch {
-	case len(s) >= 2 && (s[0] == '"' || s[0] == '\'' || s[0] == '`'):
-		lval.value = NewValue("", s[1:len(s)-1])
-		return VALUE
-	case s == "(":
-		return LB
-	case s == ")":
-		return RB
-	case s == "!":
-		return NOT
-	case s == "&&":
-		return AND
-	case s == "||":
-		return OR
-	case s == "=":
-		return MATCH
-	case s == "==":
-		return E
-	case s == "=~":
-		return RE
-	case s == "!~":
-		return NRE
-	case s == "!=":
-		return NE
-	case s == ">":
-		return GT
-	case s == "<":
-		return LT
-	case s == ">=":
-		return GTE
-	case s == "<=":
-		return LTE
-	case len(s) >= 1 && unicode.IsNumber(rune(s[0])):
-		f, err := strconv.ParseFloat(s, 64)
-		if err == nil {
-			lval.value = NewValue("", f)
-			return VALUE
-		}
-		return EOF
-	case len(s) == 1 && !unicode.IsLetter(rune(s[0])): // +, -, *, /, %
-		return int(s[0])
-	case s == "true":
-		lval.value = NewValue("", true)
-		return VALUE
-	case s == "false":
-		lval.value = NewValue("", false)
-		return VALUE
-	case s == "nil":
-		lval.value = NewValue("", nil)
-		return VALUE
-	default:
-		if l.kv == nil {
-			lval.value = NewValue("", nil)
+
+	if sb.t == VALUE {
+		if sb.variable {
+			if l.kv != nil {
+				switch instance := l.kv.(type) {
+				case pairs:
+					lval.value = instance.getValue(sb.raw)
+				default:
+					lval.value = NewValue(sb.raw, l.kv.Get(sb.raw))
+				}
+			}
 		} else {
-			lval.value = NewValue(s, l.kv.Get(s))
+			lval.value = sb.v
 		}
-		return VALUE
 	}
+	return sb.t
 }
 
 // Error 为 yacc 所用
@@ -123,7 +144,7 @@ func (l *Assert) Error(s string) {
 
 // Execute 使用参数中给定的变量, 执行表达式并返回结果
 // 执行过程中出现任何错误都会返回 error, 比如字符串与数字比较等等
-func (l *Assert) Execute(kv kvReader) (bool, error) {
+func (l *Assert) Execute(kv KV) (bool, error) {
 	l.Lock()
 	defer l.Unlock()
 	l.kv = kv
@@ -138,46 +159,32 @@ func (l *Assert) Execute(kv kvReader) (bool, error) {
 	return l.answer.Boolean(), nil
 }
 
-// DataAndPos 返回表达式代码中的各个单元
-func (l *Assert) DataAndPos() ([]string, int) {
-	ret := make([]string, len(l.data))
-	copy(ret, l.data)
-	return ret, l.pos
-}
-
-// Variables 返回表达式中的变量名列表
-func (l *Assert) Variables() []string {
-	ret := make([]string, len(l.variables))
-	copy(ret, l.variables)
-	return ret
-}
-
-func parse(data string) ([]string, []string, error) {
-	items := make([]string, 0, 8)
-	variables := make([]string, 0, 4)
+func parse(data string) ([]symbol, error) {
+	items := make([]symbol, 0, 8)
 	var (
-		prevState         = 0
+		// prevState         = 0
 		state, start, cut = 0, 0, false
 		err               error
 	)
 	for i := 0; i < len(data); {
-		prevState = state
+		// prevState = state
 		state, cut, err = nextState(state, rune(data[i]))
 		if err != nil {
-			return nil, nil, errors.Wrap(err, "syntax error")
+			return nil, errors.Wrap(err, "syntax error")
 		} else if cut {
 			unit := strings.TrimSpace(data[start:i])
-			items = append(items, unit)
-			if prevState == 10 { // 10 表示是个变量
-				variables = append(variables, unit)
-			}
+			items = append(items, newSymbol(unit))
+			/*
+				if prevState == 10 { // 10 表示是个变量
+				}
+			*/
 			start = i
 		} else {
 			i++
 		}
 	}
-	items = append(items, strings.TrimSpace(data[start:]))
-	return items, variables, nil
+	items = append(items, newSymbol(strings.TrimSpace(data[start:])))
+	return items, nil
 }
 
 // return nextState, cutOrNot, errorMessage
@@ -277,17 +284,44 @@ func nextState(state int, c rune) (int, bool, error) {
 	return 0, false, errors.Errorf("unknown state %d", state)
 }
 
-// MapKV 以 map 为基础实现 kvReader
-type MapKV map[string]interface{}
+type pair struct {
+	key   string
+	value Value
+}
+type pairs []pair
 
 // Get 获取变量值
-func (kv MapKV) Get(key string) interface{} {
-	v, _ := kv[key]
-	return v
+func (p pairs) Get(key string) interface{} {
+	for _, item := range p {
+		if item.key == key {
+			return item.value
+		}
+	}
+	return nil
+}
+
+func (p pairs) getValue(key string) Value {
+	for _, item := range p {
+		if item.key == key {
+			return item.value
+		}
+	}
+	return nilValue
+}
+
+// NewKV is inner default KV
+func NewKV(data map[string]interface{}) KV {
+	arr := make(pairs, len(data))
+	i := 0
+	for k, v := range data {
+		arr[i] = pair{k, NewValue(k, v)}
+		i++
+	}
+	return arr
 }
 
 // Execute directly run the code with the reader
-func Execute(code string, reader kvReader) (bool, error) {
+func Execute(code string, reader KV) (bool, error) {
 	exp, err := New(code)
 	if err != nil {
 		return false, err
@@ -301,11 +335,11 @@ func ExecuteMap(code string, data map[string]interface{}) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return exp.Execute(MapKV(data))
+	return exp.Execute(NewKV(data))
 }
 
 // MustExecute is same with Execute, but panic if has error
-func MustExecute(code string, reader kvReader) bool {
+func MustExecute(code string, reader KV) bool {
 	exp, err := New(code)
 	if err != nil {
 		panic(err)
@@ -323,7 +357,7 @@ func MustExecuteMap(code string, data map[string]interface{}) bool {
 	if err != nil {
 		panic(err)
 	}
-	b, err := exp.Execute(MapKV(data))
+	b, err := exp.Execute(NewKV(data))
 	if err != nil {
 		panic(err)
 	}
@@ -332,11 +366,11 @@ func MustExecuteMap(code string, data map[string]interface{}) bool {
 
 // Equal check if the two assert expression is equal, (mainly ignore the white space charactors)
 func Equal(code1, code2 string) bool {
-	items1, _, err := parse(strings.TrimSpace(code1))
+	items1, err := parse(strings.TrimSpace(code1))
 	if err != nil {
 		return false
 	}
-	items2, _, err := parse(strings.TrimSpace(code2))
+	items2, err := parse(strings.TrimSpace(code2))
 	if err != nil {
 		return false
 	}

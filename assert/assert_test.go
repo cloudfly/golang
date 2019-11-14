@@ -8,28 +8,27 @@ import (
 )
 
 func TestParse(t *testing.T) {
-	items, variables, err := parse(`  A.a == B.b && 234.2342 > 234 || ("hello" == A.bcd && A.b / B.hello >= 23.24)`)
+	items, err := parse(`  A.a == B.b && 234.2342 > 234 || ("hello" == A.bcd && A.b / B.hello >= 23.24)`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, "A.a", items[0])
-	assert.Equal(t, "==", items[1])
-	assert.Equal(t, "B.b", items[2])
-	assert.Equal(t, "&&", items[3])
-	assert.Equal(t, "234.2342", items[4])
-	assert.Equal(t, ">", items[5])
-	assert.Equal(t, "234", items[6])
-	assert.Equal(t, `||`, items[7])
-	assert.Equal(t, `(`, items[8])
-	assert.Equal(t, `"hello"`, items[9])
-	assert.Equal(t, `A.bcd`, items[11])
-	assert.Equal(t, `A.b`, items[13])
-	assert.Equal(t, `/`, items[14])
-	assert.Equal(t, `B.hello`, items[15])
-	assert.Equal(t, `>=`, items[16])
-	assert.Equal(t, `23.24`, items[17])
-	assert.Equal(t, `)`, items[18])
-	assert.Equal(t, []string{"A.a", "B.b", "A.bcd", "A.b", "B.hello"}, variables)
+	assert.Equal(t, "A.a", items[0].raw)
+	assert.Equal(t, "==", items[1].raw)
+	assert.Equal(t, "B.b", items[2].raw)
+	assert.Equal(t, "&&", items[3].raw)
+	assert.Equal(t, "234.2342", items[4].raw)
+	assert.Equal(t, ">", items[5].raw)
+	assert.Equal(t, "234", items[6].raw)
+	assert.Equal(t, `||`, items[7].raw)
+	assert.Equal(t, `(`, items[8].raw)
+	assert.Equal(t, `"hello"`, items[9].raw)
+	assert.Equal(t, `A.bcd`, items[11].raw)
+	assert.Equal(t, `A.b`, items[13].raw)
+	assert.Equal(t, `/`, items[14].raw)
+	assert.Equal(t, `B.hello`, items[15].raw)
+	assert.Equal(t, `>=`, items[16].raw)
+	assert.Equal(t, `23.24`, items[17].raw)
+	assert.Equal(t, `)`, items[18].raw)
 }
 
 func TestAssert_ExecuteNormal(t *testing.T) {
@@ -38,7 +37,7 @@ func TestAssert_ExecuteNormal(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := expr.Execute(
-		MapKV(map[string]interface{}{
+		NewKV(map[string]interface{}{
 			"class": "URL 监控",
 			"value": 234,
 		}),
@@ -83,11 +82,11 @@ func TestAssert_ExecuteNormal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err = expr.Execute(MapKV{
+	result, err = expr.Execute(NewKV(map[string]interface{}{
 		"code":  200,
 		"rt":    56,
 		"error": "",
-	})
+	}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,11 +96,11 @@ func TestAssert_ExecuteNormal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err = expr.Execute(MapKV{
+	result, err = expr.Execute(NewKV(map[string]interface{}{
 		"host":  "172.16.50.50",
 		"time":  1533791996370402301,
 		"usage": 65.14931404914708,
-	})
+	}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,11 +112,11 @@ func TestAssert_ExecuteNormal(t *testing.T) {
 	for i := 0; i < 20; i++ {
 		go func() {
 			defer wait.Done()
-			result, err = expr.Execute(MapKV{
+			result, err = expr.Execute(NewKV(map[string]interface{}{
 				"host":  "172.16.50.50",
 				"time":  1533791996370402301,
 				"usage": 65.14931404914708,
-			})
+			}))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -133,7 +132,7 @@ func TestAssert_ExecuteRegexp(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := expr.Execute(
-		MapKV(map[string]interface{}{
+		NewKV(map[string]interface{}{
 			"s": "OK 200",
 		}),
 	)
@@ -143,7 +142,7 @@ func TestAssert_ExecuteRegexp(t *testing.T) {
 	assert.Equal(t, true, result)
 
 	result, err = expr.Execute(
-		MapKV(map[string]interface{}{
+		NewKV(map[string]interface{}{
 			"s": "OK 300",
 		}),
 	)
@@ -157,7 +156,7 @@ func TestAssert_ExecuteRegexp(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err = expr.Execute(
-		MapKV(map[string]interface{}{
+		NewKV(map[string]interface{}{
 			"s": "OK 200",
 		}),
 	)
@@ -171,7 +170,7 @@ func TestAssert_ExecuteRegexp(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err = expr.Execute(
-		MapKV(map[string]interface{}{
+		NewKV(map[string]interface{}{
 			"bizType": 4,
 		}),
 	)
@@ -181,7 +180,7 @@ func TestAssert_ExecuteRegexp(t *testing.T) {
 	assert.Equal(t, false, result)
 
 	result, err = expr.Execute(
-		MapKV(map[string]interface{}{
+		NewKV(map[string]interface{}{
 			"bizType": -5,
 		}),
 	)
@@ -195,7 +194,7 @@ func TestAssert_ExecuteRegexp(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err = expr.Execute(
-		MapKV(map[string]interface{}{
+		NewKV(map[string]interface{}{
 			"rx_mbps": 4000,
 		}),
 	)
@@ -218,7 +217,7 @@ func TestAssert_ExecuteMatch(t *testing.T) {
 		"abc.50.50",
 	} {
 		result, err := expr.Execute(
-			MapKV(map[string]interface{}{
+			NewKV(map[string]interface{}{
 				"host": item,
 			}),
 		)
@@ -235,7 +234,7 @@ func TestAssert_ExecuteMatch(t *testing.T) {
 		"abc.50.50.10",
 	} {
 		result, err := expr.Execute(
-			MapKV(map[string]interface{}{
+			NewKV(map[string]interface{}{
 				"host": item,
 			}),
 		)
@@ -256,7 +255,7 @@ func TestAssert_ExecuteMatch(t *testing.T) {
 		"abc.50.50.10",
 	} {
 		result, err := expr.Execute(
-			MapKV(map[string]interface{}{
+			NewKV(map[string]interface{}{
 				"host": item,
 			}),
 		)
@@ -275,14 +274,14 @@ func TestAssert_Error(t *testing.T) {
 	}
 
 	result, err := expr.Execute(
-		MapKV(map[string]interface{}{
+		NewKV(map[string]interface{}{
 			"value": 1000,
 		}),
 	)
 	assert.NoError(t, err)
 	assert.True(t, result)
 	result, err = expr.Execute(
-		MapKV(map[string]interface{}{
+		NewKV(map[string]interface{}{
 			"value": 100,
 		}),
 	)
@@ -290,7 +289,7 @@ func TestAssert_Error(t *testing.T) {
 	assert.False(t, result)
 
 	_, err = expr.Execute(
-		MapKV(map[string]interface{}{
+		NewKV(map[string]interface{}{
 			"value": nil,
 		}),
 	)
@@ -298,7 +297,7 @@ func TestAssert_Error(t *testing.T) {
 	t.Log(err.Error())
 
 	_, err = expr.Execute(
-		MapKV(map[string]interface{}{
+		NewKV(map[string]interface{}{
 			"value": "gogogo",
 		}),
 	)
@@ -310,7 +309,7 @@ func TestAssert_Error(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = expr.Execute(
-		MapKV(map[string]interface{}{
+		NewKV(map[string]interface{}{
 			"value": 1000,
 		}),
 	)
@@ -325,7 +324,7 @@ func TestAssert_NilValue(t *testing.T) {
 		t.Fatal(err)
 	}
 	ok, err := expr.Execute(
-		MapKV(map[string]interface{}{
+		NewKV(map[string]interface{}{
 			"value": nil,
 		}),
 	)
@@ -333,21 +332,21 @@ func TestAssert_NilValue(t *testing.T) {
 	assert.True(t, ok)
 
 	ok, err = expr.Execute(
-		MapKV(map[string]interface{}{}),
+		NewKV(map[string]interface{}{}),
 	)
 	assert.NoError(t, err)
 	assert.True(t, ok)
 
 	expr, _ = New(`value != nil && value > 1000`)
 	ok, err = expr.Execute(
-		MapKV(map[string]interface{}{}),
+		NewKV(map[string]interface{}{}),
 	)
 	assert.NoError(t, err)
 	assert.False(t, ok)
 
 	expr, _ = New(`value > 1000 || value == nil`)
 	ok, err = expr.Execute(
-		MapKV(map[string]interface{}{}),
+		NewKV(map[string]interface{}{}),
 	)
 	// value > 1000 在前面, 先执行会出错
 	assert.Error(t, err)
@@ -355,28 +354,28 @@ func TestAssert_NilValue(t *testing.T) {
 
 	expr, _ = New(`value == nil`)
 	ok, err = expr.Execute(
-		MapKV(map[string]interface{}{}),
+		NewKV(map[string]interface{}{}),
 	)
 	assert.NoError(t, err)
 	assert.True(t, ok)
 
 	expr, _ = New(`value != nil`)
 	ok, err = expr.Execute(
-		MapKV(map[string]interface{}{}),
+		NewKV(map[string]interface{}{}),
 	)
 	assert.NoError(t, err)
 	assert.False(t, ok)
 
 	expr, _ = New(`value == ""`)
 	ok, err = expr.Execute(
-		MapKV(map[string]interface{}{}),
+		NewKV(map[string]interface{}{}),
 	)
 	assert.NoError(t, err)
 	assert.False(t, ok)
 
 	expr, _ = New(`!(value > 0)`)
 	ok, err = expr.Execute(
-		MapKV(map[string]interface{}{}),
+		NewKV(map[string]interface{}{}),
 	)
 	assert.Error(t, err)
 	assert.False(t, ok)
@@ -385,21 +384,21 @@ func TestAssert_NilValue(t *testing.T) {
 func TestAssert_NoValue(t *testing.T) {
 	expr, _ := New(`nil == nil`)
 	ok, err := expr.Execute(
-		MapKV(map[string]interface{}{}),
+		NewKV(map[string]interface{}{}),
 	)
 	assert.NoError(t, err)
 	assert.True(t, ok)
 
 	expr, _ = New(`123 == 123`)
 	ok, err = expr.Execute(
-		MapKV(map[string]interface{}{}),
+		NewKV(map[string]interface{}{}),
 	)
 	assert.NoError(t, err)
 	assert.True(t, ok)
 
 	expr, _ = New(`"123" == "123"`)
 	ok, err = expr.Execute(
-		MapKV(map[string]interface{}{}),
+		NewKV(map[string]interface{}{}),
 	)
 	assert.NoError(t, err)
 	assert.True(t, ok)
@@ -409,4 +408,20 @@ func TestEqual(t *testing.T) {
 	assert.True(t, Equal("", ""))
 	assert.True(t, Equal("a==2", "a == 2"))
 	assert.False(t, Equal("a=2", "a == 2"))
+}
+
+func BenchmarkAssert(b *testing.B) {
+	expr, err := New("a==b")
+	if err != nil {
+		b.Fatal(err)
+	}
+	expri, err := New("ia>ib")
+	if err != nil {
+		b.Fatal(err)
+	}
+	kv := NewKV(map[string]interface{}{"a": "Hello", "b": "World", "ia": 12, "ib": 44})
+	for i := 0; i < b.N; i++ {
+		expr.Execute(kv)
+		expri.Execute(kv)
+	}
 }

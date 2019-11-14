@@ -13,8 +13,19 @@ import (
 
 var (
 	recache sync.Map
+	// 全局可复用的常量 value
+	trueValue  Value
+	falseValue Value
+	nilValue   Value
 )
 
+func init() {
+	trueValue = NewValue("", true)
+	falseValue = NewValue("", false)
+	nilValue = NewValue("", nil)
+}
+
+// Value types
 const (
 	Nil = iota
 	Boolean
@@ -23,12 +34,14 @@ const (
 	Error
 )
 
+// Value represents a variable in expression
 type Value struct {
 	name  string
 	val   interface{}
 	vType uint8
 }
 
+// NewValue create a new value
 func NewValue(name string, v interface{}) Value {
 	res := Value{
 		name:  name,
