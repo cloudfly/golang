@@ -14,9 +14,11 @@ const (
 
 // Policy represent a group of policy item
 type Policy struct {
-	items []policyItem
-	job   Job
-	next  *Policy
+	items   []policyItem
+	job     Job
+	at      int64
+	brother *Policy
+	next    *Policy
 }
 
 // ParsePolicy 解析策略字符串
@@ -57,11 +59,16 @@ func parsePolicyItem(from time.Time, s []byte) (policyItem, error) {
 	fields := bytes.Split(s, []byte{policyItemSplit})
 	durations := make([]time.Duration, 0, len(fields))
 	for _, field := range fields {
-		dur, err := time.ParseDuration(string(bytes.TrimSpace(field)))
-		if err != nil {
-			return policyItem{}, fmt.Errorf("uncorrect interval setting '%s': %s", field, err.Error())
+		field = bytes.TrimSpace(field)
+		if len(field) > 0 {
+			dur, err := time.ParseDuration(string(field))
+			if err != nil {
+				return policyItem{}, fmt.Errorf("uncorrect interval setting '%s': %s", field, err.Error())
+			}
+			durations = append(durations, dur)
+		} else {
+			durations = append(durations, 0)
 		}
-		durations = append(durations, dur)
 	}
 
 	item := policyItem{}
@@ -69,12 +76,18 @@ func parsePolicyItem(from time.Time, s []byte) (policyItem, error) {
 	case 1:
 		item.Interval = int64(durations[0] / time.Second)
 	case 2:
-		item.Start = from.Add(durations[0]).Unix()
+		if durations[0] > 0 {
+			item.Start = from.Add(durations[0]).Unix()
+		}
 		item.Interval = int64(durations[1] / time.Second)
 	case 3:
-		item.Start = from.Add(durations[0]).Unix()
+		if durations[0] > 0 {
+			item.Start = from.Add(durations[0]).Unix()
+		}
 		item.Interval = int64(durations[1] / time.Second)
-		item.End = from.Add(durations[2]).Unix()
+		if durations[2] > 0 {
+			item.End = from.Add(durations[2]).Unix()
+		}
 	default:
 		return policyItem{}, fmt.Errorf("uncorrect policy '%s'", s)
 	}
@@ -120,7 +133,7 @@ type Job interface {
 type Engine struct {
 	ctx   context.Context
 	ch    chan engineCommand
-	table map[int64]*Policy
+	queue *Policy
 }
 
 // NewEngine create a engine
@@ -129,6 +142,7 @@ func NewEngine(ctx context.Context) *Engine {
 		ctx: ctx,
 		ch:  make(chan engineCommand, 10),
 	}
+	go engine.activate()
 	return &engine
 }
 
@@ -162,21 +176,20 @@ func (engine *Engine) activate() {
 			cmd.execute(engine)
 		case now := <-ticker.C:
 			unix := now.Unix()
-			policy, ok := engine.table[unix]
-			if !ok {
-				break
-			}
-			go func(p *Policy, t time.Time) {
-				iter := p
-				for iter != nil {
-					if !iter.job.Finished() {
-						go iter.job.Do(t)
-						engine.ch <- scheCommand{iter, t.Add(time.Second)}
+			for engine.queue != nil && engine.queue.at <= unix {
+				policy := engine.queue
+				engine.queue = engine.queue.next
+				go func(p *Policy) {
+					iter := p
+					for iter != nil {
+						if !iter.job.Finished() {
+							go iter.job.Do(time.Unix(p.at, 0))
+							engine.ch <- scheCommand{iter, time.Unix(p.at+1, 0)}
+						}
+						iter = iter.next
 					}
-					iter = iter.next
-				}
-			}(policy, now)
-			delete(engine.table, unix)
+				}(policy)
+			}
 		case <-done:
 			return
 		}
@@ -193,15 +206,38 @@ type scheCommand struct {
 }
 
 func (cmd scheCommand) execute(engine *Engine) {
-	nextUnix := cmd.p.NextTime(cmd.from.Unix())
-	if nextUnix > 0 {
-		cmd.p.next = engine.table[nextUnix]
-		engine.table[nextUnix] = cmd.p
+	cmd.p.at = cmd.p.NextTime(cmd.from.Unix())
+	if engine.queue == nil {
+		engine.queue = cmd.p
+		return
+	}
+	var prev *Policy
+	iter := engine.queue
+	for iter != nil {
+		if iter.at < cmd.p.at {
+			iter = iter.next
+		} else if iter.at == cmd.p.at {
+			cmd.p.next = iter.next
+			cmd.p.brother = iter
+			iter.next = nil
+			if prev != nil {
+				prev.next = cmd.p
+			}
+		} else {
+			cmd.p.next = iter
+			if prev != nil {
+				prev.next = cmd.p
+			} else {
+				engine.queue = cmd.p
+			}
+		}
+		prev = iter
+		iter = iter.next
 	}
 }
 
 type clearCommand struct{}
 
 func (cmd clearCommand) execute(engine *Engine) {
-	engine.table = make(map[int64]*Policy)
+	engine.queue = nil
 }

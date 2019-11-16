@@ -1,6 +1,7 @@
 package timepolicy
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -51,6 +52,35 @@ func TestPolicy(t *testing.T) {
 	// 走 10m:3m 策略, 2019-11-16 16:04:23 开始每 3m 一次
 	// now.Add(time.Hour) 是否 2019-11-16 16:57:41
 	// 16:04:23 + 3m * 18 => 16:04:23 + 54m => 16:58:23
-	fmt.Println(time.Unix(next, 0))
 	assert.Equal(t, time.Date(2019, 11, 16, 16, 58, 23, 0, time.Local).Unix(), next)
+}
+
+type MockJob struct {
+	t        *testing.T
+	from     time.Time
+	finished bool
+}
+
+func (job *MockJob) Do(t time.Time) {
+	fmt.Println(t.Format("2006-01-02T15:04:05"))
+}
+
+func (job *MockJob) Finished() bool {
+	return job.finished
+}
+
+func TestEngine(t *testing.T) {
+	engine := NewEngine(context.Background())
+
+	job := &MockJob{
+		from: time.Now(),
+		t:    t,
+	}
+	fmt.Println("start time is:", job.from.Format("2006-01-02T15:04:05"))
+	err := engine.RegisterWithTime(job.from, ":2s:10s,20s:5s:10m", job)
+	assert.NoError(t, err)
+	time.Sleep(time.Second * 30)
+	job.finished = true
+	fmt.Println("finished, output nothing from now")
+	time.Sleep(time.Second * 10)
 }
