@@ -56,13 +56,14 @@ func TestPolicy(t *testing.T) {
 }
 
 type MockJob struct {
+	prefix   string
 	t        *testing.T
 	from     time.Time
 	finished bool
 }
 
 func (job *MockJob) Do(t time.Time) {
-	fmt.Println(t.Format("2006-01-02T15:04:05"))
+	fmt.Println(job.prefix, t.Format("2006-01-02T15:04:05"))
 }
 
 func (job *MockJob) Finished() bool {
@@ -73,14 +74,20 @@ func TestEngine(t *testing.T) {
 	engine := NewEngine(context.Background())
 
 	job := &MockJob{
-		from: time.Now(),
-		t:    t,
+		prefix: "[one]",
+		from:   time.Now(),
+		t:      t,
 	}
-	fmt.Println("start time is:", job.from.Format("2006-01-02T15:04:05"))
-	err := engine.RegisterWithTime(job.from, ":2s:10s,20s:5s:10m", job)
+	err := engine.RegisterWithTime(job.from, ":2s:5s,6s:3s:10m", job)
 	assert.NoError(t, err)
-	time.Sleep(time.Second * 30)
+	time.Sleep(time.Second * 15)
+	job2 := &MockJob{
+		prefix: "[two]",
+		from:   time.Now(),
+		t:      t,
+	}
 	job.finished = true
-	fmt.Println("finished, output nothing from now")
-	time.Sleep(time.Second * 10)
+	err = engine.RegisterWithTime(job.from, "1s", job2)
+	assert.NoError(t, err)
+	time.Sleep(time.Second * 4)
 }

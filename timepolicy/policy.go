@@ -222,6 +222,8 @@ func (cmd scheCommand) execute(engine *Engine) {
 			iter.next = nil
 			if prev != nil {
 				prev.next = cmd.p
+			} else {
+				engine.queue = cmd.p
 			}
 		} else {
 			cmd.p.next = iter
