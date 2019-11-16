@@ -3,6 +3,7 @@ package timepolicy
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 	"testing"
 	"time"
 
@@ -72,7 +73,6 @@ func (job *MockJob) Finished() bool {
 
 func TestEngine(t *testing.T) {
 	engine := NewEngine(context.Background())
-
 	job := &MockJob{
 		prefix: "[one]",
 		from:   time.Now(),
@@ -90,4 +90,102 @@ func TestEngine(t *testing.T) {
 	err = engine.RegisterWithTime(job.from, "1s", job2)
 	assert.NoError(t, err)
 	time.Sleep(time.Second * 4)
+}
+
+func TestParsePolicyItem(t *testing.T) {
+	now := time.Now()
+	item, err := parsePolicyItem(now, []byte("2s"))
+	assert.NoError(t, err)
+	assert.Equal(t, int64(2), item.Interval)
+
+	item, err = parsePolicyItem(now, []byte(":2s:"))
+	assert.NoError(t, err)
+	assert.Equal(t, int64(2), item.Interval)
+
+	item, err = parsePolicyItem(now, []byte(":2s"))
+	assert.NoError(t, err)
+	assert.Equal(t, int64(2), item.Interval)
+
+	item, err = parsePolicyItem(now, []byte("10s:2s"))
+	assert.NoError(t, err)
+	assert.Equal(t, now.Add(time.Second*10).Unix(), item.Start)
+	assert.Equal(t, int64(2), item.Interval)
+
+	item, err = parsePolicyItem(now, []byte("10s:2s:10m"))
+	assert.NoError(t, err)
+	assert.Equal(t, now.Add(time.Second*10).Unix(), item.Start)
+	assert.Equal(t, int64(2), item.Interval)
+	assert.Equal(t, now.Add(time.Minute*10).Unix(), item.End)
+
+	item, err = parsePolicyItem(now, []byte("::10m"))
+	assert.Error(t, err)
+
+	item, err = parsePolicyItem(now, []byte("10m::"))
+	assert.Error(t, err)
+
+	item, err = parsePolicyItem(now, []byte(":::"))
+	assert.Error(t, err)
+
+	item, err = parsePolicyItem(now, []byte(""))
+	assert.Error(t, err)
+
+	item, err = parsePolicyItem(now, []byte("::5m::"))
+	assert.Error(t, err)
+
+	item, err = parsePolicyItem(now, []byte(":xxx:"))
+	assert.Error(t, err)
+
+	item, err = parsePolicyItem(now, []byte("100"))
+	assert.Error(t, err)
+}
+
+type NoneJob struct {
+	MockJob
+}
+
+func (job NoneJob) Do(t time.Time) {}
+
+func TestScheCommand(t *testing.T) {
+	engine := &Engine{}
+	now := time.Now()
+	p, _ := ParsePolicy(now, "1s")
+	scheCommand{&p, now}.execute(engine)
+	p2 := p
+	scheCommand{&p2, now}.execute(engine)
+
+	p3, _ := ParsePolicy(now, "2s:2s")
+	scheCommand{&p3, now}.execute(engine)
+
+	head := engine.queue
+	assert.Equal(t, "1s", head.spec)
+	assert.Equal(t, "1s", head.brother.spec)
+	assert.Equal(t, "2s:2s", head.next.spec)
+}
+
+func BenchmarkScheCommand(b *testing.B) {
+	debug.SetGCPercent(-1)
+	engine := &Engine{}
+
+	now := time.Now()
+	specs := [][]byte{[]byte("1s"), []byte("1s:2s"), []byte("2s:3s"), []byte("3s:2s")}
+	policies := make([]Policy, len(specs))
+	for i := 0; i < len(specs); i++ {
+		policies[i], _ = ParsePolicyBytes(now, specs[i])
+	}
+
+	unix := now.Add(time.Minute).Unix()
+
+	for i := 0; i < b.N; i++ {
+		p := policies[i%len(policies)]
+		p.next, p.brother, p.at = nil, nil, 0
+		scheCommand{&p, now}.execute(engine)
+
+		for engine.queue != nil && engine.queue.at <= unix {
+			iter := engine.queue
+			engine.queue = engine.queue.next
+			for iter != nil {
+				iter = iter.brother
+			}
+		}
+	}
 }
